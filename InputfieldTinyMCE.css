@@ -1,9 +1,37 @@
-.mceLayout * {
-  -moz-box-sizing: content-box;
-  -webkit-box-sizing: content-box;
-  box-sizing: content-box;
+.InputfieldTinyMCEInline {
+	/* default inline editor style */
+	margin: 0;
+	padding: 20px; 
+	border: 1px dashed #ccc;
+	overflow: hidden;
+	min-height: 60px;
 }
 
-#mce_fullscreen_container {
-	z-index: 99 !important;
+.InputfieldTinyMCE textarea {
+	/* hides textarea with HTML during init but keeps the height */ 
+	opacity: 0;
+}
+
+.InputfieldTinyMCE .tox-statusbar__branding {
+	/* prevents the word "TINY" from appearing in lower right of status bar */
+	display: none;
+}
+
+.InputfieldTinyMCE .tox-tinymce,
+body .tox.tox-tinymce-inline .tox-editor-header {
+	/* prevents border radius as used by some editor skins */
+	border-radius: 0;
+}
+
+.InputfieldTinyMCE .tox .tox-tbtn {
+	/* increase default margins between toolbar tools */
+	margin-right: 5px; 
+}
+.InputfieldTinyMCE .tox .tox-tbtn--select {
+	/* remove seemingly-unnecessary right padding from select toolbar tools */
+	padding-right: 0; 
+}
+.InputfieldTinyMCE .tox .tox-split-button {
+	/* increased margin for split-buttons */
+	margin-right: 10px; 
 }

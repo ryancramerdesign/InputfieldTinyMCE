@@ -1,22 +1,30 @@
-# TinyMCE rich text editor for ProcessWire
+# InputfieldTinyMCE
 
-This module was previously in the ProcessWire core, but has been removed
-as of ProcessWire 2.4.9. 
+### Rich text editor for ProcessWire 3.0.200+
 
-If you are running a version of ProcessWire before 2.4.9, this module
-will be of no use to you, since it is already present in the core. 
+This is an Inputfield for ProcessWire 3.0.200+ that uses TinyMCE 6.2.0. 
+Note this is a development version and will eventually be added to the ProcessWire 
+core as an alternative or replacement for the existing CKEditor 4.x Inputfield. 
 
-This module will continue to be maintained and updated as needed as a 3rd 
-party module. If you require TinyMCE in your ProcessWire installation or 
-have spent time configuring it for your site and would rather not change 
-to CKEditor, you should install this. 
+<https://processwire.com/blog/posts/new-rte-for-pw/>
 
-## Installation
+## Install
 
-To install, place in `/site/modules/InputfieldTinyMCE/`. If your site
-is already using TinyMCE and you just upgraded to a version of PW that 
-no longer has it, you shouldn't need to do anything other than go to 
-Admin > Modules > Check for new modules. PW should automatically pick
-up on the new location and start using it immediately with your
-existing fields already configured for TinyMCE
+1. Copy all files and directories from this module into /site/modules/InputfieldTinyMCE/.
+2. In your admin go to Modules > Refresh, and click "Install" for InputfieldTinyMCE.
+3. Note all the module configuration settings, which you may want to return to later. 
 
+## Usage
+
+1. Create a new Textarea field or edit an existing one (Setup > Fields). 
+2. While editing the field, on the "Details" tab, select "TinyMCE" for "Inputfield type".
+3. Save. Then while still editing the field, click to the "Input" tab, review the 
+   available settings and optionally modify them as needed. Save. 
+
+-----
+
+ProcessWire 3.x, Copyright 2022 by Ryan Cramer  
+https://processwire.com
+
+TinyMCE 6.x, Copyright (c) 2022 Ephox Corporation DBA Tiny Technologies, Inc.  
+https://www.tiny.cloud/docs/tinymce/6/
