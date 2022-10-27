@@ -15,6 +15,7 @@
  * @property string $toolbar Space-separated string of tools to show in toolbar
  * @property string $contextmenu Space-separated string of tools to show in context menu
  * @property string $removed_menuitems Space-separated string of tools to remove from menubar
+ * @property string $invalid_styles Space-separated string of invalid inline styles
  * @property int $height Height of editor in pixels
  *
  * Field/Inputfield settings
@@ -24,7 +25,7 @@
  * @property array $features General features: toolbar, menubar, statusbar, stickybars, spellcheck, purifier, imgUpload, imgResize
  * @property array $headlines Allowed headline types
  * @property string $settingsFile Location of optional custom-settings.json settings file (URL relative to PW root URL)
- * @property string $settingsField Alternate field to inherit settings from
+ * @property string $settingsField Alternate field to inherit settings from rather than configure settings with this instance.
  * @property string $settingsJSON JSON with custom settings that override the defaults
  * @property string $styleFormatsCSS Style formats as CSS to parse and apply to style_formats and content_style
  * @property array $extPlugins Additional plugins to enable for this field (URL paths from customPluginOptions) 
@@ -59,7 +60,7 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 		return array(
 			'title' => 'TinyMCE',
 			'summary' => 'TinyMCE rich text editor version ' . self::mceVersion . '.',
-			'version' => 600,
+			'version' => 601,
 			'icon' => 'keyboard-o',
 			'requires' => 'MarkupHTMLPurifier',
 		);
@@ -113,6 +114,7 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 		'contextmenu',
 		'removed_menuitems',
 		'external_plugins',
+		'invalid_styles',
 		'readonly',
 		'content_css',
 		'content_css_url', // used when content_css=="custom", not part of tinyMCE
@@ -121,7 +123,9 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 	);
 
 	/**
-	 * Names of field settings
+	 * Names of all field settings (set in init)
+	 * 
+	 * This is so that we can determine what settings to pull from a $settingsField
 	 * 
 	 * @var array 
 	 * 
@@ -146,12 +150,10 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 	);
 
 	/**
-	 * Settings to populate in data-settings attribute (between renderReady and render)
-	 * 
-	 * @var array 
+	 * @var bool 
 	 * 
 	 */
-	protected $dataSettings = array();
+	protected $configurable = true;
 
 	/**
 	 * Construct
@@ -162,6 +164,7 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 			'skin' => 'oxide',
 			'content_css' => 'wire',
 			'content_css_url' => '', 
+			'invalid_styles' => '',
 			'defaultsFile' => '', 
 			'defaultsJSON' => '', 
 			'extPluginOptions' => '', 
@@ -201,14 +204,15 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 	
 		// module settings
 		$defaults = $this->settings()->getDefaults();
-	
 		$settings = array();
+		
 		foreach($this->mceSettingNames as $key) {
 			// skip over module-wide settings that match TinyMCE setting names
 			if($key === 'skin' || $key === 'skin_url') continue;
 			if($key === 'content_css' || $key === 'content_css_url') continue;
 			$settings[$key] = $defaults[$key]; 
 		}
+		
 		$this->data($settings);
 	}
 
@@ -238,7 +242,9 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 	}
 
 	/**
-	 * Set configuration name
+	 * Set configuration name used to store settings in ProcessWire.config JS
+	 * 
+	 * i.e. ProcessWire.config.InputfieldTinyMCE.settings.[configName].[settingName]
 	 * 
 	 * @param string $configName
 	 * @return $this
@@ -250,13 +256,31 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 	}
 
 	/**
-	 * Get configuration name
+	 * Get configuration name used to store settings in ProcessWire.config JS
+	 * 
+	 * i.e. ProcessWire.config.InputfieldTinyMCE.settings.[configName].[settingName]
 	 * 
 	 * @return string
 	 * 
 	 */
 	public function getConfigName() {
 		return $this->configName;
+	}
+
+	/**
+	 * Get or set configurable state
+	 * 
+	 * - True if Inputfield is configurable (default state). 
+	 * - False if it is required that another field be used ($settingsField) to pull settings from. 
+	 * - Note this is completely unrelated to the $configName property. 
+	 * 
+	 * @param bool $set
+	 * @return bool
+	 * 
+	 */
+	public function configurable($set = null) {
+		if(is_bool($set)) $this->configurable = $set;
+		return $this->configurable;
 	}
 
 	/**
@@ -284,7 +308,7 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 		if($key === 'toolbar') {
 			if(strpos($value, ',') !== false) {
 				// $value = $this->configHelper()->ckeToMceToolbar($value); // convert CKE toolbar
-				return $this; // ignore CKE toolbar
+				return $this; // ignore CKE toolbar (which has commas in it)
 			}
 			$value = $this->tools()->sanitizeNames($value);
 			
@@ -299,7 +323,7 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 	}
 	
 	/**
-	 * Render ready that only needs one call
+	 * Render ready that only needs one call for entire request
 	 * 
 	 */
 	protected function renderReadyOnce() {
@@ -320,6 +344,7 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 		
 		if(strpos($skin, 'dark') !== false && strpos($this->content_css, 'dark') === false) {
 			// ensure some menubar/toolbar labels are not black-on-black in dark skin + light content_css
+			// this was necessary as of TinyMCE 6.2.0
 			$addStyles[] = "body .tox-collection__item-label > *:not(code):not(pre) { color: #eee !important; }";
 		}
 	
@@ -341,6 +366,7 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 				'default' => $this->settings()->prepareSettingsForOutput($this->settings()->getDefaults())
 			),
 			'labels' => array(
+				// translatable labels for pwimage and pwlink plugins
 				'selectImage' => $this->_('Select image'),
 				'editImage' => $this->_('Edit image'),
 				'captionText' => $this->_('Your caption text here'),
@@ -348,10 +374,11 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 				'cancel' => $this->_('Cancel'),
 				'insertImage' => $this->_('Insert image'),
 				'selectAnotherImage' => $this->_('Select another'),
-				'insertLink' => $this->_('Insert link'), // Insert link label, window headline and button text
-				'editLink' => $this->_('Edit link'), // Edit link label
+				'insertLink' => $this->_('Insert link'),
+				'editLink' => $this->_('Edit link'),
 			),
 			'pwlink' => array(
+				// settings specific to pwlink plugin
 				'classOptions' => $this->tools()->linkConfig('classOptions')
 			),
 		);
@@ -376,20 +403,20 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 		}
 
 		$settingsField = $this->settingsField;
-		$upload = $this->useFeature('imgUpload');
+		
+		if($settingsField) {
+			$settingsField = $this->settings()->applySettingsField($settingsField);
+		}
+
 		$replaceTools = array();
+		$upload = $this->useFeature('imgUpload');
 		$imageField = $upload ? $this->tools()->getImageField() : null;
+		$field = $settingsField instanceof Field ? $settingsField : $this->hasField;
 		
 		if($this->inlineMode) {
 			$cssFile = $this->settings()->getContentCssUrl();
 			$this->wire()->config->styles->add($cssFile);
 		}
-		
-		if($settingsField && "$settingsField" !== "$this->hasField") {
-			$settingsField = $this->applySettingsField($this->settingsField);
-		}
-
-		$field = $settingsField instanceof Field ? $settingsField : $this->hasField;
 
 		if($imageField) {
 			// custom attributes for images
@@ -420,19 +447,18 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 		}
 	
 		if($field && $field->type instanceof FieldtypeTextarea) {
+			/*
 			if($field->flags && Field::flagFieldgroupContext) {
 				// get field without context
 				$field = $this->wire()->fields->get($field->name);
 			}
+			*/
 			if(!$this->configName || $this->configName === 'default') {
 				$this->configName = $field->name;
 			}
-			if($this->inlineMode) {
-				$this->addClass("tmcei-$this->configName", 'wrapClass'); // for content_style CSS targeting
-			}
 		}
-
-		$this->settings()->renderReadySettings();
+		
+		$this->settings()->applyRenderReadySettings();
 
 		return parent::renderReady($parent, $renderValueMode);
 	}
@@ -555,36 +581,65 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 	/**
 	 * Update settings to inherit from another field
 	 * 
-	 * @param string $fieldName
+	 * @param string $fieldName Field name or 'fieldName:id' string
 	 * @return bool|Field Returns false or field inherited from
 	 * 
 	 */
 	protected function applySettingsField($fieldName) {
+		
+		$fieldId = 0;
+		$error = '';
+
+		if(strpos($fieldName, ':')) {
+			list($fieldName, $fieldId) = explode(':', $fieldName);
+		} else if(ctype_digit("$fieldName")) {
+			$fieldName = (int) $fieldName; // since fields.get also accepts IDs
+		}
 
 		$field = $this->wire()->fields->get($fieldName);
 
 		if(!$field) {
-			$this->error("Cannot find settings field '$fieldName'");
+			$error = "Cannot find settings field '$fieldName'";
 		} else if(!$field->type instanceof FieldtypeTextarea) {
-			$this->error("Field '$fieldName' is not of type FieldtypeTextarea");
+			$error = "Settings field '$fieldName' is not of type FieldtypeTextarea";
 			$field = null;
 		} else if(!wireInstanceOf($field->get('inputfieldClass'), $this->className())) {
-			$this->error("Field '$fieldName' is not using TinyMCE");
+			$error = "Settings field '$fieldName' is not using TinyMCE";
 			$field = null;
 		}
-
-		if(!$field) return false;
 		
+		if(!$field && $fieldId && $fieldName) {
+			// try again with field ID only, which won't go recursive again
+			return $this->applySettingsField($fieldId); 
+		}
+
+		if(!$field) {
+			if($error) $this->error($error);
+			return false;
+		}
+	
+		// identify settings to apply
 		$data = array();
 		
 		foreach(array_merge($this->mceSettingNames, $this->fieldSettingNames) as $name) {
 			$value = $field->get($name);
 			if($value !== null) $data[$name] = $value;
 		}
-		
+	
+		// apply settings
 		$this->data($data);
 		
 		return $field;
+	}
+
+	/**
+	 * Get all configurable setting names
+	 * 
+	 * @return string[]
+	 * 
+	 */
+	public function getAllSettingNames() {
+		return array_merge($this->mceSettingNames, $this->fieldSettingNames);
 	}
 
 	/**

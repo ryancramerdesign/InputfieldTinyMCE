@@ -18,27 +18,45 @@ class InputfieldTinyMCESettings extends Wire {
 	protected $inputfield;
 
 	/**
-	 * HTML5 inline elements
+	 * HTML5 inline elements that should be "inline" designation in style_formats
+	 * 
+	 * These elements can be inserted from Styles dropdown, if defined in style_formats.
 	 * 
 	 * @var string 
 	 * 
 	 */
 	static protected $inlines =
-		'/a/abbr/acronym/audio/b/bdi/bdo/big/br/button/canvas/cite/code/data/datalist/' .
-		'/del/dfn/em/embed/i/iframe/img/input/ins/kbd/label/map/mark/meter/noscript/' .
-		'/object/output/picture/progress/q/ruby/s/samp/script/select/slot/small/span/strong/' .
-		'/sub/sup/svg/template/textarea/time/u/tt/var/video/wbr/';
+		'/a/abbr/acronym/b/bdi/bdo/big/br/button/cite/code/' .
+		'/del/dfn/em/i/ins/kbd/label/mark/meter/' .
+		'/q/s/samp/small/span/strong/' .
+		'/sub/sup/time/u/tt/var/wbr/';
 
 	/**
-	 * HTML5 block elements
+	 * HTML5 block elements that should use "block" designation in style_formats
+	 * 
+	 * These elements can be inserted from Styles dropdown, if defined in style_formats.
 	 * 
 	 * @var string 
 	 * 
 	 */
 	static protected $blocks =
-		'/address/article/aside/blockquote/dd/details/dialog/div/dl/dt/fieldset/figcaption/' .
-		'/figure/footer/form/h1/h2/h3/h4/h5/h6/header/hgroup/hr/li/main/nav/ol/p/pre/' .
+		'/address/article/aside/blockquote/dd/details/div/dl/dt/' .
+		'/footer/h1/h2/h3/h4/h5/h6/header/hgroup/hr/li/main/nav/ol/p/pre/' .
 		'/section/table/ul/';
+
+	/**
+	 * HTML5 block or inline elements that should use "selector" designation in style_formats
+	 * 
+	 * These elements (and any others not defined above) cannot be inserted by selection but 
+	 * existing elements can be applied. For reference only, nothing uses this variable.
+	 * 
+	 * @var string 
+	 * 
+	 */
+	static protected $inlineBlocks =
+		'/fieldset/figcaption/figure/form/dialog/form/' . 
+		'/audio/canvas/data/datalist/img/iframe/embed/input/map/noscript/object/output/' . 
+		'/picture/progress/ruby/select/slot/svg/template/textarea/video/';
 
 	/**
 	 * Runtime caches shared among all instances
@@ -119,13 +137,13 @@ class InputfieldTinyMCESettings extends Wire {
 			}
 		}
 
-		$this->applySkin($settings);
+		$this->applySkin($settings, $defaults);
 		$this->applyPlugins($settings, $defaults);
 
 		if(isset($defaults['style_formats'])) {
 			$styleFormatsCSS = $inputfield->get('styleFormatsCSS');
 			if($styleFormatsCSS) {
-				$this->applyStyleFormatsCSS($styleFormatsCSS, $settings);
+				$this->applyStyleFormatsCSS($styleFormatsCSS, $settings, $defaults);
 			}
 		}
 
@@ -230,9 +248,10 @@ class InputfieldTinyMCESettings extends Wire {
 	 * Apply skin or skin_url directly to given settings/defaults
 	 * 
 	 * @param array $settings
+	 * @param array $defaults
 	 * 
 	 */
-	protected function applySkin(&$settings) {
+	protected function applySkin(&$settings, $defaults) {
 		$skin = $this->inputfield->skin;
 		if($skin === 'custom') {
 			$skinUrl = rtrim($this->inputfield->skin_url, '/');
@@ -240,12 +259,15 @@ class InputfieldTinyMCESettings extends Wire {
 				if(strpos($skinUrl, '//') === false) {
 					$skinUrl = $this->wire()->config->urls->root . ltrim($skinUrl, '/');
 				}
-				$this->message($skinUrl);
-				$settings['skin_url'] = $skinUrl;
+				if(!isset($defaults['skin_url']) || $defaults['skin_url'] != $skinUrl) {
+					$settings['skin_url'] = $skinUrl;
+				}
 				unset($settings['skin']); 
 			}
 		} else {
-			$settings['skin'] = $skin;
+			if(isset($defaults['skin']) && $defaults['skin'] != $skin) {
+				$settings['skin'] = $skin;
+			}
 			unset($settings['skin_url']);
 		}
 	}
@@ -363,7 +385,7 @@ class InputfieldTinyMCESettings extends Wire {
 		$headlines = $this->inputfield->get('headlines');
 		foreach($headlines as $h) {
 			$n = ltrim($h, 'h');
-			$values[] = "Headline $n=$h;";
+			$values[] = "Heading $n=$h;";
 		}
 		return implode(' ', $values);
 	}
@@ -628,10 +650,10 @@ class InputfieldTinyMCESettings extends Wire {
 	}
 
 	/**
-	 * Determine which settings go where and populate or output
+	 * Determine which settings go where and apply to Inputfield
 	 * 
 	 */
-	public function renderReadySettings() {
+	public function applyRenderReadySettings() {
 	
 		$config = $this->wire()->config;
 		$adminTheme = $this->wire()->adminTheme;
@@ -683,8 +705,8 @@ class InputfieldTinyMCESettings extends Wire {
 				$cssName = $configName;
 				if(empty($cssName)) {
 					$cssName = substr(md5($contentStyle), 0, 4) . strlen($contentStyle);
-					$inputfield->addClass("tmcei-$cssName", 'wrapClass');
 				}
+				$inputfield->addClass("tmcei-$cssName", 'wrapClass');
 				if(!isset(self::$caches['renderReadyInline'][$cssName])) {
 					// inline mode content_style settings, ensure they are visible before inline init
 					$ns = ".tmcei-$cssName .mce-content-body ";
@@ -713,95 +735,128 @@ class InputfieldTinyMCESettings extends Wire {
 	 * 
 	 * @param string $css From the styleFormatsCSS setting
 	 * @param array $settings
+	 * @param array $defaults
 	 * 
 	 */
-	protected function applyStyleFormatsCSS($css, array &$settings) {
+	protected function applyStyleFormatsCSS($css, array &$settings, $defaults) {
 
 		$contentStyle = ''; // output for content_style
+		
+		// ensures each CSS rule has its own line
 		$css = trim(str_replace('}', "}\n", $css));
+		
+		// while(strpos($css, '} ') !== false) $css = str_replace('} ', '}', $css);
+		
+		// converts each CSS rule to be on single line with no newlines between "key:value;" rules
+		//$css = preg_replace('!\s*([{;:]|/\*|\*/)\s*!s', '\1', $css);
 		$css = preg_replace('!\s*([{;:]|/\*)\s*!s', '\1', $css);
+
+		//$css = preg_replace('!\}\s+/\*!s', '}/*', $css);
+
 		$lines = explode("\n", $css);
-		$parents = array();
 		$formats = array(
-			/*
-			'Headings' => array(), 
-			'Blocks' => array(),
-			'Inline' => array(),
-			'Align' => array(),
-			'Other' => array(), // converts to root level (no parent)
-			*/
+			// 'Headings' => array(), 
+			// 'Blocks' => array(),
+			// 'Inline' => array(),
+			// 'Align' => array(),
+			// 'Other' => array(), // converts to root level (no parent)
 		);
 		
-		foreach($lines as $key => $line) {
+		// foreach($lines as $key => $line) {
+		while(count($lines)) {
+		
+			$line = array_shift($lines);
 			$line = trim($line);
-			if(empty($line)) {
-				unset($lines[$key]);
-				continue;
+			$title = '';
+
+			if(empty($line)) continue;
+			if(strpos($line, '{') && strpos($line, '}') === false) {
+				// grab next line if a rule was started but not closed
+				$line .= array_shift($lines);
 			}
-			$lines[$key] = $line;
-			if(strpos($line, '/*') !== false) {
-				list($a, $b) = explode('/*', $line, 2);
-				list($title, $d) = explode('*/', $b, 2);
-				$css = str_replace("/*$title*/", "", $css);
-				$line = $a . $d;
-				$title = trim($title);
-			} else {
-				$title = '';
+			
+			if(strpos($line, '{') === false) continue; // line does not start a rule
+			
+			if(strpos($line, '/*') && preg_match('!/\*(.+)?\*/!', $line, $matches)) {
+				// line has comment indicating text label
+				$title = trim($matches[1]);
+				$line = str_replace($matches[0], '', $line); 
 			}
-			if(strpos($line, '{') === false) continue;
+			
 			list($selector, $styles) = explode('{', $line, 2);
 			list($styles,) = explode('}', $styles, 2);
+			
 			$selector = trim($selector);
+			
 			if(strpos($selector, '#') === 0) {
+				// indicates a submenu parent, i.e. #Blocks
 				list($parent, $selector) = explode(' ', $selector, 2);
 				$selector = trim($selector);
 				$parent = ucfirst(strtolower(ltrim($parent, '#')));
 			} else {
 				$parent = 'Other';
 			}
-			$parents[$parent] = "#$parent ";
+			
 			if(strpos($selector, '.') !== false) {
+				// element with class, i.e. span.red-text or just .red-text
 				list($element, $class) = explode('.', $selector, 2);
 				$class = str_replace('.', ' ', $class);
-				$stylesArray = array();
-				$contentStyle .= "$element.$class { $styles } ";
 			} else {
+				// element only (no class), i.e. ins or del
 				$element = $selector;
 				$class = '';
-				$stylesArray = array();
-				foreach(explode(';', $styles) as $style) {
-					if(strpos($style, ':') === false) continue;
-					list($k, $v) = explode(':', $style);
-					$stylesArray[trim($k)] = trim($v);
-				}
 			}
-			if(empty($element)) $element = '*';
-			if(!isset($formats[$parent])) $formats[$parent] = array();
-			
-			$format = array('title' => ($title ? $title : $selector));
 
-			if(stripos("/$element/", self::$inlines) !== false) {
+			$stylesStr = ''; // minified styles string
+			$inlineStyles = array(); // styles to also forced as inline styles on element
+			
+			foreach(explode(';', $styles) as $style) {
+				// i.e. color: red
+				if(strpos($style, ':') === false) continue;
+				list($k, $v) = explode(':', $style);
+				list($k, $v) = array(trim($k), trim($v));
+				if(strtoupper($k) === $k) {
+					// uppercase styles i.e. 'COLOR: red' become inline styles of element
+					$k = strtolower($k);
+					$inlineStyles[$k] = $v;
+				}
+				$stylesStr .= "$k:$v;";
+			}
+		
+			if($class) {
+				$contentStyle .= "$element.$class { $stylesStr } ";
+			} else {
+				$contentStyle .= "$element { $stylesStr } ";
+			}
+
+			if(empty($element)) $element = '*';
+			
+			$format = array(
+				'title' => ($title ? $title : $selector)
+			);
+
+			if(stripos(self::$inlines, "/$element/") !== false) {
 				$format['inline'] = $element;
-			} else if(strpos("/$element/", self::$blocks) !== false) {
+			} else if(strpos(self::$blocks, "/$element/") !== false) {
 				$format['block'] = $element;
 			} else {
 				$format['selector'] = $element;
 			}
-			if($class) {
-				$format['classes'] = $class;
-			} else if(count($stylesArray)) {
-				$format['styles'] = $stylesArray; 
-			}
+			
+			if($class) $format['classes'] = $class;
+			if(count($inlineStyles)) $format['styles'] = $inlineStyles;
+			if(!isset($formats[$parent])) $formats[$parent] = array();
+			
 			$formats[$parent][] = $format;
 		}
-
+		
 		$styleFormats = array();
 		
 		foreach($formats as $parent => $format) {
 			if($parent === 'Other') {
 				$styleFormats[$parent] = $format;
-			} else {
-				if(!isset($styleFormats[$parent])) $styleFormats[$parent] = array(
+			} else if(!isset($styleFormats[$parent])) {
+				$styleFormats[$parent] = array(
 					'title' => $parent,
 					'items' => $format,
 				);
@@ -819,16 +874,89 @@ class InputfieldTinyMCESettings extends Wire {
 		
 		// add to settings
 		if(isset($settings['style_formats'])) {
-			$settings['style_formats'] = $this->mergeStyleFormats($settings['style_formats'], $styleFormats); 
+			$settings['style_formats'] = $this->mergeStyleFormats($settings['style_formats'], $styleFormats);
+		} else if(isset($defaults['style_formats'])) {
+			$settings['style_formats'] = $this->mergeStyleFormats($defaults['style_formats'], $styleFormats);
 		} else {
 			$settings['style_formats'] = $styleFormats;
 		}
 		
 		if(isset($settings['content_style'])) {
 			$settings['content_style'] .= $contentStyle;
+		} else if(isset($defaults['content_style'])) {
+			$settings['content_style'] = $defaults['content_style'] . $contentStyle;
 		} else {
 			$settings['content_style'] = $contentStyle;
 		}
+		
 	}
+
+	/**
+	 * Apply settings settings to $this->inputfield to inherit from another field
+	 * 
+	 * This is called from the main InputfieldTinyMCE class. 
+	 *
+	 * @param string $fieldName Field name or 'fieldName:id' string
+	 * @return bool|Field Returns false or field inherited from
+	 *
+	 */
+	public function applySettingsField($fieldName) {
+
+		$fieldId = 0;
+		$error = '';
+		$hasField = $this->inputfield->hasField;
+		$hasPage = $this->inputfield->hasPage;
+
+		if(strpos($fieldName, ':')) {
+			list($fieldName, $fieldId) = explode(':', $fieldName);
+		} else if(ctype_digit("$fieldName")) {
+			$fieldName = (int) $fieldName; // since fields.get also accepts IDs
+		}
 	
+		// no need to inherit from oneself
+		if("$fieldName" === "$hasField") return false;
+
+		$field = $this->wire()->fields->get($fieldName);
+
+		if(!$field) {
+			$error = "Cannot find settings field '$fieldName'";
+		} else if(!$field->type instanceof FieldtypeTextarea) {
+			$error = "Settings field '$fieldName' is not of type FieldtypeTextarea";
+			$field = null;
+		} else if(!wireInstanceOf($field->get('inputfieldClass'), $this->inputfield->className())) {
+			$error = "Settings field '$fieldName' is not using TinyMCE";
+			$field = null;
+		}
+
+		if(!$field && $fieldId && $fieldName) {
+			// try again with field ID only, which won't go recursive again
+			return $this->applySettingsField($fieldId);
+		}
+
+		if(!$field) {
+			if($error) $this->error($this->inputfield->attr('name') . ": $error");
+			return false;
+		}
+		
+		if($field->flags & Field::flagFieldgroupContext) {
+			// field already in fieldgroup context
+		} else if($hasPage && $hasPage->template->fieldgroup->hasFieldContext($field)) {
+			// get in context of current page template’s fieldgroup, if applicable
+			$field = $hasPage->template->fieldgroup->getFieldContext($field->id);
+		}
+
+		// identify settings to apply
+		$data = array();
+
+		foreach($this->inputfield->getAllSettingNames() as $name) {
+			$value = $field->get($name);
+			if($value !== null) $data[$name] = $value;
+		}
+
+		// apply settings
+		$this->inputfield->data($data);
+
+		return $field;
+	}
+
 }

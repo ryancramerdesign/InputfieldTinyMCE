@@ -330,6 +330,70 @@ class InputfieldTinyMCEConfigHelper extends Wire {
 	}
 
 	/**
+	 * Get features options
+	 * 
+	 * @return array[]
+	 * 
+	 */
+	public function getFeaturesOptions() {
+		return array(
+			'toolbar' => array(
+				'label' => $this->_('Toolbar'),
+				'description' =>
+					$this->_('Enables the toolbar of icons that provide access most of the rich text editing tools.')
+			),
+			'menubar' => array(
+				'label' => $this->_('Menubar'),
+				'description' =>
+					$this->_('Enables a separate menubar with drop down menus and text labels, and appears above the toolbar.') . ' ' .
+					$this->_('This can optionally be used in addition to, or instead of, the toolbar.')
+			),
+			/*
+			'statusbar' => array(
+				'label' => $this->_('Statusbar'), 
+				'description' => 
+					$this->_('The status bar appears at the bottom of the editor and shows the current element, clickable parents and editor resize control.') . ' ' . 
+					$this->_('It also shows a word count when the wordcount plugin is enabled.') . ' ' . 
+					$this->_('Required for regular editor, optional for inline editor.')
+			),
+			*/
+			'stickybars' => array(
+				'label' => $this->_('Stickybars'),
+				'description' =>
+					$this->_('Docks the toolbar and menubar to the top of the screen when scrolling until the editor is no longer visible.')
+			),
+			'spellcheck' => array(
+				'label' => $this->_('Spellcheck'),
+				'description' =>
+					$this->_('The browser spellcheck feature underlines (in red) misspelled or unrecognized words as you type.')
+			),
+			'purifier' => array(
+				'label' => $this->_('Purifier'),
+				'description' =>
+					sprintf($this->_('Purifies input HTML/markup with [htmlpurifier](%s).'), 'https://github.com/ezyang/htmlpurifier/blob/master/README.md') . ' ' .
+					$this->_('Helps to prevent saving potentially dangerous HTML and avoid XSS exploits.') . ' ' .
+					$this->_('Though does increase potential to interfere with some intended markup.') . ' ' .
+					$this->_('Enabling this is strongly recommended unless all current and future users are trusted explicitly.') . ' ' .
+					$this->_('Disable at your own risk.')
+			),
+			'imgUpload' => array(
+				'label' => $this->_('Upload'),
+				'description' =>
+					$this->_('Enables images to be uploaded automatically by dragging and dropping them into the editor.') . ' ' .
+					$this->_('Requires that the page being edited has an images field on it.')
+			),
+			'imgResize' => array(
+				'label' => $this->_('Resize'),
+				'description' =>
+					$this->_('Creates optimized image files automatically when images are resized by dragging their resize handles.') . ' ' .
+					$this->_('If not enabled, images can still be resized by dragging their resize handles, but new image files are not generated.') . ' ' .
+					$this->_('You can also use the pop-up image dialog to create image sizes and crops either way.')
+			),
+		);
+
+	}
+
+	/**
 	 * Get field configuration
 	 * 
 	 * @param InputfieldWrapper $inputfields
@@ -346,6 +410,9 @@ class InputfieldTinyMCEConfigHelper extends Wire {
 		$exampleLabel = $this->label('example');
 		$isPost = $this->wire()->input->requestMethod('POST');
 		$settingsFields = $this->getOtherTinyMCEFields();
+		$configurable = $this->inputfield->configurable();
+		$field = $this->inputfield->hasField;
+		$inContext = $field && ($field->flags & Field::flagFieldgroupContext);
 		
 		/** @var InputfieldFieldset $fieldset */
 		$fieldset = $modules->get('InputfieldFieldset'); 
@@ -355,24 +422,39 @@ class InputfieldTinyMCEConfigHelper extends Wire {
 		$fieldset->themeOffset = 1;
 		$inputfields->prepend($fieldset);
 	
-		if(count($settingsFields)) {
-			$f = $modules->get('InputfieldSelect');
+		if(count($settingsFields) || !$configurable) {
+			$f = $fieldset->InputfieldSelect;
 			$f->attr('name', 'settingsField');
 			$f->label = $this->_('Field to inherit TinyMCE settings from');
-			$f->description = $this->_('If you select a field here, we will use the settings from the selected field rather than those configured here.'); 
-			$f->notes = $this->_('After changing your selection please Save before making more changes, as it will modify what fields appear below this.');
-			$f->addOption('', $this->_('None (configure this field here)'));
-			$f->collapsed = Inputfield::collapsedBlank;
+			$f->icon = 'cube';
 			$f->themeOffset = 1;
-			foreach($settingsFields as $field) {
-				/** @var Field $field */
-				$f->addOption($field->name, $field->getLabel());
-			}
-			$value = $this->inputfield->settingsField;
-			$f->val($value);
 			$fieldset->add($f);
-			if($value) return $inputfields;
+			if(count($settingsFields)) {
+				$f->description = $this->_('If you select a field here, we will use the settings from the selected field rather than those configured here.');
+				$f->notes = $this->_('After changing your selection please Save before making more changes, as it will modify what fields appear below this.');
+				$f->addOption('', $this->_('None (configure this field here)'));
+				$f->collapsed = Inputfield::collapsedBlank;
+				foreach($settingsFields as $field) {
+					/** @var Field $field */
+					$f->addOption($field->name, $field->getLabel());
+				}
+				$value = $this->inputfield->settingsField;
+				$f->val($value);
+				if($value) return $fieldset;
+			} else {
+				$f->description = 
+					$this->_('This field requires an existing TinyMCE field to use the settings from, and there are currently no other TinyMCE fields.') . ' ' . 
+					$this->_('Please create a ProcessWire field of type “textarea”, select TinyMCE as the Inputfield type, and configure it.') . ' ' . 
+					$this->_('Then return here to select that field to use for this field’s settings.');
+				$f->icon = 'warning';
+				$f->addOption('', $this->_('None available'));
+			}
+			if(!$configurable) {
+				$f->notes = trim("$f->notes " . $this->_('If no selection is made, the default settings will be used.'));
+			}
 		}
+		
+		if(!$configurable) return $fieldset;
 
 		$inlineLabel = $this->_('Inline editor');
 		$regularLabel = $this->_('Regular editor');
@@ -402,65 +484,10 @@ class InputfieldTinyMCEConfigHelper extends Wire {
 		$f->val($this->inputfield->height);
 		$f->columnWidth = 30;
 		$f->icon = 'arrows-v';
-		$f->showIf = 'inlineMode!=1';
+		if(!$inContext) $f->showIf = 'inlineMode!=1';
 		$f->inputType = 'number';
 		$f->appendMarkup = "&nbsp;<span class='detail'>px</span>";
 		$fieldset->add($f);
-		
-		$features = array(
-			'toolbar' => array(
-				'label' => $this->_('Toolbar'), 
-				'description' => 
-					$this->_('Enables the toolbar of icons that provide access most of the rich text editing tools.')
-			), 
-			'menubar' => array(
-				'label' => $this->_('Menubar'),
-				'description' => 
-					$this->_('Enables a separate menubar with drop down menus and text labels, and appears above the toolbar.') . ' ' .
-					$this->_('This can optionally be used in addition to, or instead of, the toolbar.')
-			), 
-			/*
-			'statusbar' => array(
-				'label' => $this->_('Statusbar'), 
-				'description' => 
-					$this->_('The status bar appears at the bottom of the editor and shows the current element, clickable parents and editor resize control.') . ' ' . 
-					$this->_('It also shows a word count when the wordcount plugin is enabled.') . ' ' . 
-					$this->_('Required for regular editor, optional for inline editor.')
-			),
-			*/
-			'stickybars' => array(
-				'label' => $this->_('Stickybars'), 
-				'description' => 
-					$this->_('Docks the toolbar and menubar to the top of the screen when scrolling until the editor is no longer visible.')
-			),
-			'spellcheck' => array(
-				'label' => $this->_('Spellcheck'), 
-				'description' =>
-					$this->_('The browser spellcheck feature underlines (in red) misspelled or unrecognized words as you type.')
-			),
-			'purifier' => array(
-				'label' => $this->_('Purifier'),
-				'description' => 
-					sprintf($this->_('Purifies input HTML/markup with [htmlpurifier](%s).'), 'https://github.com/ezyang/htmlpurifier/blob/master/README.md') . ' ' . 
-					$this->_('Helps to prevent saving potentially dangerous HTML and avoid XSS exploits.') . ' ' . 
-					$this->_('Though does increase potential to interfere with some intended markup.') . ' ' . 
-					$this->_('Enabling this is strongly recommended unless all current and future users are trusted explicitly.') . ' ' . 
-					$this->_('Disable at your own risk.')
-			),
-			'imgUpload' => array(
-				'label' => $this->_('Upload'),
-				'description' =>
-					$this->_('Enables images to be uploaded automatically by dragging and dropping them into the editor.') . ' ' . 
-					$this->_('Requires that the page being edited has an images field on it.')
-			),
-			'imgResize' => array(
-				'label' => $this->_('Resize'),
-				'description' =>
-					$this->_('Creates optimized image files automatically when images are resized by dragging their resize handles.') . ' ' .
-					$this->_('If not enabled, images can still be resized by dragging their resize handles, but new image files are not generated.') . ' ' . 
-					$this->_('You can also use the pop-up image dialog to create image sizes and crops either way.')
-			),
-		);
 		
 		$f = $fieldset->InputfieldCheckboxes;
 		$f->attr('name', 'features');
@@ -469,7 +496,7 @@ class InputfieldTinyMCEConfigHelper extends Wire {
 		$f->table = true;
 		$f->textFormat = Inputfield::textFormatBasic;
 		$f->themeOffset = 1;
-		foreach($features as $name => $info) {
+		foreach($this->getFeaturesOptions() as $name => $info) {
 			$f->addOption($name, "**$info[label]** | $info[description]"); 
 		}
 		$f->val($this->inputfield->features);
@@ -514,7 +541,7 @@ class InputfieldTinyMCEConfigHelper extends Wire {
 			$this->_('Select or type the names of tools to use in the editor toolbar.') . ' ' . 
 			$this->_('When adding new tools note that some tools require you to enable plugins further in these settings.') . ' ' . 
 			$this->_('Hover (or click) the linked tool names at the bottom of this field for more details on each tool, including any required plugins.'); 
-		$f->showIf = 'features=toolbar';
+		if(!$inContext) $f->showIf = 'features=toolbar';
 		$f->icon = 'wrench';
 		$f->textFormat = Inputfield::textFormatMarkdown;
 		$f->allowUserTags = true;
@@ -649,7 +676,7 @@ class InputfieldTinyMCEConfigHelper extends Wire {
 		if($value === $defaults['removed_menuitems'] || empty($value)) $f->collapsed = Inputfield::collapsedYes;
 		$f->notes = $defaultLabel . $defaults['removed_menuitems'];
 		$f->themeOffset = 1;
-		$f->showIf = 'features=menubar';
+		if(!$inContext) $f->showIf = 'features=menubar';
 		$fieldset->add($f);
 		
 		$f = $fieldset->InputfieldCheckboxes;
@@ -667,16 +694,41 @@ class InputfieldTinyMCEConfigHelper extends Wire {
 		
 		$f = $fieldset->InputfieldTextarea;
 		$f->attr('name', 'styleFormatsCSS'); 
-		$f->label = $this->_('Custom style formats CSS'); 
-		$f->description = $this->_('This enables you to add additional items to the “Styles” toolbar dropdown as CSS classes.'); 
+		$f->label = $this->_('CSS classes for custom styles'); 
+		$f->description =
+			$this->_('This enables you to add additional items to the “Styles” toolbar dropdown as CSS classes.') . ' ' . 
+			$this->_('Optionally prefix with `#Headings`, `#Blocks`, `#Inline`, `#Align`, or your own `#Id` to add to a Styles dropdown submenu.') . ' ' . 
+			$this->_('You can use a CSS comment to provide the menu label, i.e. `/\* Red Text \*/`.') . ' ' . 
+			$this->_('You can omit the class (and optionally styles) if you just want to make the element available in your Styles dropdown, i.e. `ins {}`.') . ' ' . 
+			$this->_('You can specify any styles in UPPERCASE to also force them into inline styles in the markup, i.e. `span.alert { COLOR: red; }`.');
 		$f->val($this->inputfield->styleFormatsCSS);
 		$f->notes = "$exampleLabel\n" . 
-			"`span.red-text { color: red; } /\* Red Text \*/`\n" . 
-			"`img.border { border: 1px solid #ccc; padding: 2px; } /\* Image with border \*/`";
+			"`#Inline span.red-text { color: red; } /\* Red Text \*/`\n" .
+			"`#Blocks p.outline { padding: 20px; border: 1px dotted #ccc; } /\* Outline paragraph \*/`\n" .
+			"`img.border { border: 1px solid #ccc; padding: 2px; } /\* Image with border \*/`\n" . 
+			"`#Hello ins {} /\* Insert text \*/`\n" .
+			"`#Hello del { text-decoration: line-through; } /\* Delete text \*/`\n" .
+			"`#Hello span.alert { BACKGROUND: red; COLOR: white; } /\* Alert text \*/`";
+		$f->detail = 
+			$this->_('Note that this is only for the editor.') . ' ' . 
+			$this->_('You will likely want to add similar CSS classes (without the #IDs) to your front-end site stylesheet.'); 
 		$f->themeOffset = 1;
+		$f->icon = 'css3';
 		$f->collapsed = Inputfield::collapsedBlank;
 		$fieldset->add($f);
-
+		
+		$f = $fieldset->InputfieldText; 
+		$f->attr('name', 'invalid_styles'); 
+		$f->label = $this->_('Invalid styles'); 
+		$f->description = $this->_('Space-separated list of inline styles that should be disallowed in markup style attributes.'); 
+		$f->notes = $exampleLabel . " `font-size font-family line-height`";
+		$value = $this->inputfield->invalid_styles;
+		$f->val($value);
+		if(empty($value) || $value === $defaults['invalid_styles']) $f->collapsed = Inputfield::collapsedYes;
+		$f->themeOffset = 1;
+		$f->icon = 'eye-slash';
+		$fieldset->add($f);
+		
 		$label = $this->_('Custom settings JSON'); 
 		$f = $fieldset->InputfieldTextarea;
 		$f->attr('name', 'settingsJSON');

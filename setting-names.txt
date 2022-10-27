@@ -2,6 +2,7 @@ All TinyMCE 6 setting names A-Z (as far as I can tell)
 ------------------------------------------------------
 Source: https://github.com/tinymce/tinymce-dist/blob/master/tinymce.d.ts
 See also: https://www.tiny.cloud/docs/configure/ (for TinyMCE5 but still applies)
+Note that this only includes root-level settings, no sub-settings. 
 
 a11y_advanced_options
 add_form_submit_trigger
