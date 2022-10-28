@@ -16,6 +16,7 @@
  * @property string $contextmenu Space-separated string of tools to show in context menu
  * @property string $removed_menuitems Space-separated string of tools to remove from menubar
  * @property string $invalid_styles Space-separated string of invalid inline styles
+ * @property string $menubar Space-separated list of top-level menubar items
  * @property int $height Height of editor in pixels
  *
  * Field/Inputfield settings
@@ -39,12 +40,17 @@
  * @property string $extPluginOpts Newline separated URL paths (relative to PW root) of extra plugin .js files
  * @property string $defaultsFile Location of optional defaults.json file that merges with defaults.json (URL relative to PW root URL)
  * @property string $defaultsJSON JSON that merges with the defaults.json for all instances
+ * @property array $optionals Names of optional settings that can be configured per-field
  * There are also `$lang_name=packname` settings in multi-lang sites where "name" is lang name and "packname" is lang pack name
  * 
  * Runtime settings
  * ----------------
  * @property-read bool $readonly Automatically set during renderValue mode
  * @property array $external_plugins URLs of external plugins, this is also a TinyMCE setting
+ * @property-read InputfieldTinyMCESettings $settings
+ * @property-read InputfieldTinyMCEConfigs $configs
+ * @property-read InputfieldTinyMCETools $tools
+ * @property-read InputfieldTinyMCEFormats $formats
  * 
  * 
  */
@@ -60,12 +66,16 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 		return array(
 			'title' => 'TinyMCE',
 			'summary' => 'TinyMCE rich text editor version ' . self::mceVersion . '.',
-			'version' => 601,
+			'version' => 602,
 			'icon' => 'keyboard-o',
 			'requires' => 'MarkupHTMLPurifier',
 		);
 	}
-	
+
+	/**
+	 * TinyMCE version
+	 * 
+	 */
 	const mceVersion = '6.2.0';
 	
 	const toggleCleanDiv = 2; // remove <div>s
@@ -93,44 +103,52 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 	protected $configName = 'default';
 
 	/**
-	 * @var array 
+	 * Instances of InputfieldTinyMCE ConfigHelper, Tools, Settings
+	 * 
+	 * @var array
 	 * 
 	 */
 	protected $helpers = array();
 
 	/**
-	 * TinyMCE setting names that are configurable with each instance of this module
+	 * Setting names for field, module and tinymc3
 	 * 
-	 * @var string[] 
-	 * 
-	 */
-	protected $mceSettingNames = array(
-		'skin',
-		'height',
-		'plugins',
-		'toolbar',
-		'menubar', 
-		'statusbar',
-		'contextmenu',
-		'removed_menuitems',
-		'external_plugins',
-		'invalid_styles',
-		'readonly',
-		'content_css',
-		'content_css_url', // used when content_css=="custom", not part of tinyMCE
-		'external_plugins',
-		'skin_url', 
-	);
-
-	/**
-	 * Names of all field settings (set in init)
-	 * 
-	 * This is so that we can determine what settings to pull from a $settingsField
+	 * Field setting names populated by init(). 
+	 * Module setting names populated by __construct(). 
+	 * Options are settings that can be configured with module or field. 
 	 * 
 	 * @var array 
 	 * 
 	 */
-	protected $fieldSettingNames = array();
+	protected $settingNames = array(
+		'field' => array(), 
+		'module' => array(), 
+		'tinymce' => array(
+			'skin',
+			'height',
+			'plugins',
+			'toolbar',
+			'menubar',
+			'statusbar',
+			'contextmenu',
+			'removed_menuitems',
+			'external_plugins',
+			'invalid_styles',
+			'readonly',
+			'content_css',
+			'content_css_url', // used when content_css=="custom", not part of tinyMCE
+			'external_plugins',
+			'skin_url',
+		),
+		'optionals' => array(
+			'contextmenu' => 'contextmenu',
+			'removed_menuitems' => 'removed_menuitems',
+			'invalid_styles' => 'invalid_styles',
+			'styleFormatsCSS' => 'styleFormatsCSS',
+			'settingsJSON' => 'settingsJSON',
+			'headlines' => 'headlines',
+		),
+	);
 
 	/**
 	 * Available options for 'features' setting
@@ -145,48 +163,83 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 		'stickybars',
 		'spellcheck',
 		'purifier',
+		'document',
 		'imgUpload',
 		'imgResize',
 	);
 
 	/**
+	 * False when we should inherit settings from another field
+	 * 
 	 * @var bool 
 	 * 
 	 */
 	protected $configurable = true;
 
 	/**
+	 * Is field initialized? (i.e. init method already called)
+	 * 
+	 * @var bool 
+	 * 
+	 */
+	protected $initialized = false;
+
+	/**
 	 * Construct
 	 */
 	public function __construct() {
 		// module settings
-		$this->data(array(
+		$data = array(
 			'skin' => 'oxide',
 			'content_css' => 'wire',
-			'content_css_url' => '', 
-			'invalid_styles' => '',
-			'defaultsFile' => '', 
-			'defaultsJSON' => '', 
-			'extPluginOptions' => '', 
-		));
+			'content_css_url' => '',
+			'defaultsFile' => '',
+			'defaultsJSON' => '',
+			'extPluginOptions' => '',
+			'styleFormatsCSS' => '', // optionals
+			'optionals' => array(),
+		);
+	
+		foreach(array_keys($data) as $key) {
+			$this->settingNames['module'][$key] = $key;
+		}
+			
+		// optionals 
+		$data['headlines'] = array('h1','h2','h3','h4','h5','h5','h6');
+		$data['menubar'] = 'default';
+		$data['contextmenu'] = 'default';
+		$data['removed_menuitems'] = 'default';
+		$data['invalid_styles'] = 'default';
+		
+		$this->data($data);
 		parent::__construct();
 	}
 	
 	/**
 	 * Init Inputfield
+	 * 
+	 * Module settings have already been populated at this point.
 	 *
 	 */
 	public function init() {
 		parent::init();
 	
 		$this->attr('rows', 15);
+		$optionals = $this->optionals;
 	
 		// field settings
 		$data = array(
 			'contentType' => FieldtypeTextarea::contentTypeHTML,
 			'inlineMode' => 0,
-			'features' => $this->featureNames,
-			'headlines' => array('h1','h2','h3','h4','h5','h5','h6'),
+			'features' => array(
+				'toolbar',
+				'menubar',
+				'statusbar',
+				'stickybars',
+				'purifier',
+				'imgUpload',
+				'imgResize',
+			),
 			'settingsFile' => '', 
 			'settingsField' => '', 
 			'settingsJSON' => '', 
@@ -199,21 +252,31 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 			),
 		);
 		
+		if(!in_array('styleFormatsCSS', $optionals)) unset($data['styleFormatsCSS']);
+		if(!in_array('settingsJSON', $optionals)) unset($data['settingsJSON'], $data['settingsFile']);
+
 		$this->data($data);
-		$this->fieldSettingNames = array_keys($data);
+		$this->settingNames['field'] = array_keys($data);
+		$this->settingNames['field'][] = 'headlines'; // optionals
 	
-		// module settings
-		$defaults = $this->settings()->getDefaults();
+		// tinymce settings (from field or module)
+		$defaults = $this->settings->getDefaults();
 		$settings = array();
 		
-		foreach($this->mceSettingNames as $key) {
+		foreach($this->settingNames['tinymce'] as $key) {
 			// skip over module-wide settings that match TinyMCE setting names
 			if($key === 'skin' || $key === 'skin_url') continue;
 			if($key === 'content_css' || $key === 'content_css_url') continue;
+			if(isset($this->settingNames['optionals'][$key]) && !in_array($key, $optionals)) {
+				// setting only configurable at module level
+				$this->settingNames['module'][] = $key;
+				continue;
+			}
 			$settings[$key] = $defaults[$key]; 
 		}
 		
 		$this->data($settings);
+		$this->initialized = true;
 	}
 
 	/**
@@ -291,7 +354,13 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 	 * 
 	 */
 	public function get($key) {
-		if($key === 'configName') return $this->configName;
+		switch($key) {
+			case 'tools': 
+			case 'settings':
+			case 'configs':
+			case 'formats': return $this->helper($key);
+			case 'configName': return $this->configName;
+		}
 		return parent::get($key);
 	}
 
@@ -304,16 +373,33 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 	 * 
 	 */
 	public function set($key, $value) {
+	
+		if($this->initialized && isset($this->settingNames['optionals'][$key])) {
+			// do not set optionals property not allowed for field configuration
+			// if not specifically selected in module settings
+			if(!in_array($key, $this->optionals)) return $this;
+		}
 		
 		if($key === 'toolbar') {
 			if(strpos($value, ',') !== false) {
-				// $value = $this->configHelper()->ckeToMceToolbar($value); // convert CKE toolbar
+				// $value = $this->configs()->ckeToMceToolbar($value); // convert CKE toolbar
 				return $this; // ignore CKE toolbar (which has commas in it)
 			}
-			$value = $this->tools()->sanitizeNames($value);
+			if($value === 'default') {
+				$value = $this->settings->getDefaults($key);
+			} else {
+				$value = $this->tools->sanitizeNames($value);
+			}
 			
-		} else if($key === 'plugins' || $key === 'contextmenu' || $key === 'removed_menuitems') {
-			$value = $this->tools()->sanitizeNames($value);
+		} else if($key === 'invalid_styles') {
+			if($value === 'default') $value = $this->settings->getDefaults($key);
+			
+		} else if($key === 'plugins' || $key === 'contextmenu' || $key === 'removed_menuitems' || $key === 'menubar') {
+			if($value === 'default') {
+				$value = $this->settings->getDefaults($key);
+			} else {
+				$value = $this->tools->sanitizeNames($value);
+			}
 			
 		} else if($key === 'configName') {
 			return $this->setConfigName($value);
@@ -363,7 +449,7 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 		
 		$js = array(
 			'settings' => array(
-				'default' => $this->settings()->prepareSettingsForOutput($this->settings()->getDefaults())
+				'default' => $this->settings->prepareSettingsForOutput($this->settings->getDefaults())
 			),
 			'labels' => array(
 				// translatable labels for pwimage and pwlink plugins
@@ -379,7 +465,7 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 			),
 			'pwlink' => array(
 				// settings specific to pwlink plugin
-				'classOptions' => $this->tools()->linkConfig('classOptions')
+				'classOptions' => $this->tools->linkConfig('classOptions')
 			),
 		);
 	
@@ -405,16 +491,16 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 		$settingsField = $this->settingsField;
 		
 		if($settingsField) {
-			$settingsField = $this->settings()->applySettingsField($settingsField);
+			$settingsField = $this->settings->applySettingsField($settingsField);
 		}
 
 		$replaceTools = array();
 		$upload = $this->useFeature('imgUpload');
-		$imageField = $upload ? $this->tools()->getImageField() : null;
+		$imageField = $upload ? $this->tools->getImageField() : null;
 		$field = $settingsField instanceof Field ? $settingsField : $this->hasField;
 		
 		if($this->inlineMode) {
-			$cssFile = $this->settings()->getContentCssUrl();
+			$cssFile = $this->settings->getContentCssUrl();
 			$this->wire()->config->styles->add($cssFile);
 		}
 
@@ -447,18 +533,12 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 		}
 	
 		if($field && $field->type instanceof FieldtypeTextarea) {
-			/*
-			if($field->flags && Field::flagFieldgroupContext) {
-				// get field without context
-				$field = $this->wire()->fields->get($field->name);
-			}
-			*/
 			if(!$this->configName || $this->configName === 'default') {
 				$this->configName = $field->name;
 			}
 		}
 		
-		$this->settings()->applyRenderReadySettings();
+		$this->settings->applyRenderReadySettings();
 
 		return parent::renderReady($parent, $renderValueMode);
 	}
@@ -471,7 +551,7 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 	 */
 	public function ___render() {
 		
-		if($this->inlineMode && $this->tools()->purifier()) {
+		if($this->inlineMode && $this->tools->purifier()) {
 			// Inline editor
 			$out = $this->renderInline();
 		} else {
@@ -507,7 +587,7 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 	protected function renderInline() {
 		$attrs = $this->getAttributes();
 		$inlineFixed = (int) $this->inlineMode > 1; 
-		$value = $this->tools()->purifyValue($attrs['value']);
+		$value = $this->tools->purifyValue($attrs['value']);
 		$rows = (int) $attrs['rows'];
 		unset($attrs['value'], $attrs['type'], $attrs['rows']);
 		$attrs['class'] = 'InputfieldTinyMCEEditor InputfieldTinyMCEInline mce-content-body';
@@ -564,7 +644,7 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 		
 		if($value !== null && $value !== $valuePrevious && !$this->readonly) {
 			parent::___processInput($input);
-			$value = $this->tools()->purifyValue($value);
+			$value = $this->tools->purifyValue($value);
 			if($value !== $valuePrevious) {
 				$this->val($value);
 				$this->trackChange('value');
@@ -579,67 +659,45 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 	}
 
 	/**
-	 * Update settings to inherit from another field
+	 * Get all configurable setting names
 	 * 
-	 * @param string $fieldName Field name or 'fieldName:id' string
-	 * @return bool|Field Returns false or field inherited from
+	 * @param array $types Types to get, one or more of: 'tinymce', 'field', 'module'
+	 * @return string[]
+	 * @throws WireException if given unknown setting type
 	 * 
 	 */
-	protected function applySettingsField($fieldName) {
-		
-		$fieldId = 0;
-		$error = '';
-
-		if(strpos($fieldName, ':')) {
-			list($fieldName, $fieldId) = explode(':', $fieldName);
-		} else if(ctype_digit("$fieldName")) {
-			$fieldName = (int) $fieldName; // since fields.get also accepts IDs
+	public function getSettingNames(array $types) {
+		$a = array();
+		if(empty($types)) $types = array_keys($this->settingNames);
+		foreach($types as $type) {
+			if(!isset($this->settingNames[$type])) {
+				throw new WireException("Unknown setting type: $type"); 
+			}
+			$a = array_merge($a, array_values($this->settingNames[$type])); 
 		}
-
-		$field = $this->wire()->fields->get($fieldName);
-
-		if(!$field) {
-			$error = "Cannot find settings field '$fieldName'";
-		} else if(!$field->type instanceof FieldtypeTextarea) {
-			$error = "Settings field '$fieldName' is not of type FieldtypeTextarea";
-			$field = null;
-		} else if(!wireInstanceOf($field->get('inputfieldClass'), $this->className())) {
-			$error = "Settings field '$fieldName' is not using TinyMCE";
-			$field = null;
-		}
-		
-		if(!$field && $fieldId && $fieldName) {
-			// try again with field ID only, which won't go recursive again
-			return $this->applySettingsField($fieldId); 
-		}
-
-		if(!$field) {
-			if($error) $this->error($error);
-			return false;
-		}
+		return $a;
+	}
 	
-		// identify settings to apply
-		$data = array();
-		
-		foreach(array_merge($this->mceSettingNames, $this->fieldSettingNames) as $name) {
-			$value = $field->get($name);
-			if($value !== null) $data[$name] = $value;
-		}
-	
-		// apply settings
-		$this->data($data);
-		
-		return $field;
+	/**
+	 * Add an external plugin .js file
+	 *
+	 * @param string $file File must be .js file relative to PW installation root, i.e. /site/templates/mce/myplugin.js
+	 * @throws WireException
+	 *
+	 */
+	public function addPlugin($file) {
+		$this->configs->addPlugin($file);
 	}
 
 	/**
-	 * Get all configurable setting names
-	 * 
-	 * @return string[]
-	 * 
+	 * Remove an external plugin .js file
+	 *
+	 * @param string $file File must be .js file relative to PW installation root, i.e. /site/templates/mce/myplugin.js
+	 * @return bool
+	 *
 	 */
-	public function getAllSettingNames() {
-		return array_merge($this->mceSettingNames, $this->fieldSettingNames);
+	public function removePlugin($file) {
+		return $this->configs->removePlugin($file);
 	}
 
 	/**
@@ -653,42 +711,18 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 	}
 	
 	/**
-	 * @return InputfieldTinyMCETools
-	 * 
-	 */
-	public function tools() {
-		return $this->helper('tools');
-	}
-	
-	/**
-	 * @return InputfieldTinyMCESettings
-	 *
-	 */
-	public function settings() {
-		return $this->helper('settings');
-	}
-
-	/**
-	 * @return InputfieldTinyMCEConfigHelper 
-	 * 
-	 */
-	public function configHelper() {
-		return $this->helper('configHelper', 'config');
-	}
-
-	/**
 	 * Get helper
 	 * 
 	 * @param string $name
-	 * @param string $basename
-	 * @return InputfieldTinyMCEConfigHelper|InputfieldTinyMCESettings|InputfieldTinyMCETools
+	 * @return InputfieldTinyMCEClass
 	 * 
 	 */
-	protected function helper($name, $basename = '') {
+	public function helper($name) {
 		if(empty($this->helpers[$name])) {
-			if($basename === '') $basename = $name;
-			require_once(__DIR__ . '/' . "$basename.php");
-			$class = "\\ProcessWire\\InputfieldTinyMCE" . ucfirst($name);
+			$class = $this->className() . ucfirst($name);
+			require_once(__DIR__ . "/InputfieldTinyMCEClass.php"); 
+			require_once(__DIR__ . "/$class.php");
+			$class = "\\ProcessWire\\$class";
 			$this->helpers[$name] = new $class($this);
 		}
 		return $this->helpers[$name];
@@ -702,7 +736,7 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 	 */
 	public function ___getConfigInputfields() {
 		$inputfields = parent::___getConfigInputfields();
-		$this->configHelper()->getConfigInputfields($inputfields);
+		$this->configs->getConfigInputfields($inputfields);
 		return $inputfields;
 	}
 
@@ -713,7 +747,7 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 	 * 
 	 */
 	public function getModuleConfigInputfields(InputfieldWrapper $inputfields) {
-		$this->configHelper()->getModuleConfigInputfields($inputfields);
+		$this->configs->getModuleConfigInputfields($inputfields);
 	}
 
 }

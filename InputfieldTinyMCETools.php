@@ -9,15 +9,22 @@
  * https://processwire.com
  *
  */ 
-class InputfieldTinyMCETools extends Wire {
+class InputfieldTinyMCETools extends InputfieldTinyMCEClass {
 
 	/**
-	 * @var InputfieldTinyMCE 
+	 * Image fields indexed by template ID
+	 * 
+	 * @var array 
 	 * 
 	 */
-	protected $inputfield;
-	
 	static protected $imageFields = array();
+
+	/**
+	 * Cache for linkConfig method
+	 * 
+	 * @var null 
+	 * 
+	 */
 	static protected $linkConfig = null;
 
 	/**
@@ -25,18 +32,6 @@ class InputfieldTinyMCETools extends Wire {
 	 * 
 	 */
 	static protected $purifier = null;
-
-	/**
-	 * Construct
-	 * 
-	 * @param InputfieldTinyMCE $inputfield
-	 * 
-	 */
-	public function __construct(InputfieldTinyMCE $inputfield) {
-		parent::__construct();
-		$inputfield->wire($this);
-		$this->inputfield = $inputfield;
-	}
 
 	/**
 	 * Sanitize toolbar or plugin names

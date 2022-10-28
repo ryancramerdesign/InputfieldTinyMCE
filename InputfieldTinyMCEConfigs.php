@@ -9,14 +9,8 @@
  * https://processwire.com
  *
  */
-class InputfieldTinyMCEConfigHelper extends Wire {
+class InputfieldTinyMCEConfigs extends InputfieldTinyMCEClass {
 	
-	/**
-	 * @var InputfieldTinyMCE
-	 *
-	 */
-	protected $inputfield;
-
 	/**
 	 * TinyMCE toolbar options
 	 * 
@@ -223,26 +217,25 @@ class InputfieldTinyMCEConfigHelper extends Wire {
 			'Clicking Word Count in the status bar switches between counting words and characters. ' . 
 			'A dialog box with both word and character counts can be opened using the menu item situated in the Tools drop-down, or the toolbar button.',
 	);
-	
+
 	/**
-	 * Construct
+	 * Get shared text label
 	 * 
-	 * @param InputfieldTinyMCE $inputfield
+	 * @param string $name
+	 * @return string
 	 * 
 	 */
-	public function __construct(InputfieldTinyMCE $inputfield) {
-		parent::__construct();
-		$this->inputfield = $inputfield;
-		$inputfield->wire($this);
-	}
-	
 	public function label($name) {
 		switch($name) {
 			case 'example': return $this->_('Example:') . ' ';
 			case 'default': return $this->_('Default:') . ' ';
+			case 'useDefault': return $this->_('Specify `default` to use the default value.'); 
 			case 'custom': return $this->_('custom');
 			case 'text': return $this->_('text');
 			case 'file': return $this->_('file');
+			case 'tinymce': return $this->_('TinyMCE');
+			case 'more': return $this->_('More');
+			case 'details': return $this->_('Details');
 		}
 		return $name;
 	}
@@ -376,6 +369,12 @@ class InputfieldTinyMCEConfigHelper extends Wire {
 					$this->_('Enabling this is strongly recommended unless all current and future users are trusted explicitly.') . ' ' .
 					$this->_('Disable at your own risk.')
 			),
+			'document' => array(
+				'label' => $this->_('Document'), 
+				'description' => 
+					$this->_('Override the editor default content style to use the document content style.') . ' ' . 
+					$this->_('This looks like a sheet of paper, similar to how it might appear in a word processor.')
+			),
 			'imgUpload' => array(
 				'label' => $this->_('Upload'),
 				'description' =>
@@ -405,7 +404,7 @@ class InputfieldTinyMCEConfigHelper extends Wire {
 		$config = $this->wire()->config;
 		$modules = $this->wire()->modules;
 		
-		$defaults = $this->inputfield->settings()->getDefaults();
+		$defaults = $this->settings()->getDefaults();
 		$defaultLabel = $this->label('default');
 		$exampleLabel = $this->label('example');
 		$isPost = $this->wire()->input->requestMethod('POST');
@@ -418,7 +417,7 @@ class InputfieldTinyMCEConfigHelper extends Wire {
 		$fieldset = $modules->get('InputfieldFieldset'); 
 		$fieldset->attr('name', '_tinymce'); 
 		$fieldset->label = $this->_('TinyMCE editor settings');
-		$fieldset->icon = 'sliders';
+		$fieldset->icon = 'keyboard-o';
 		$fieldset->themeOffset = 1;
 		$inputfields->prepend($fieldset);
 	
@@ -469,10 +468,10 @@ class InputfieldTinyMCEConfigHelper extends Wire {
 		$f->attr('value', (int) $this->inputfield->inlineMode);
 		$f->description = 
 			$this->_('When inline mode is enabled, the editor will not be loaded until you click in the text.') . ' ' . 
-			$this->_('This is faster and more efficient when there multiple TinyMCE fields on the page.');
+			$this->_('This is faster and more efficient when there several TinyMCE fields on the page.');
 		$f->notes = 
-			$this->_('The Regular editor works well for a main bodycopy field.') . ' ' . 
-			$this->_('The Inline editor is preferable when there can be several editor instances, or if the editor is within repeatable field.');
+			$this->_('The Regular editor works well for a main bodycopy and sidebar type fields.') . ' ' . 
+			$this->_('The Inline editor is preferable when there can be several editor instances, such as within repeatable types.');
 		$f->themeOffset = 1;
 		$f->columnWidth = 70; 
 		$fieldset->add($f);
@@ -633,52 +632,27 @@ class InputfieldTinyMCEConfigHelper extends Wire {
 			$f->addOption('none', $this->_('There are currently no external plugins to enable'), array('disabled' => 'disabled'));
 		}
 		$f->collapsed = count($opts) ? Inputfield::collapsedNo : Inputfield::collapsedBlank;
-		$f->themeOffset = 1;
 		$fieldset->add($f);
 
-		$f = $fieldset->InputfieldCheckboxes;
-		$f->attr('name', 'headlines');
-		$f->label = $this->_('Headline options');
-		$f->description = $this->_('Select which headlines should be available in the “blocks” and/or “styles” dropdowns.');
-		$f->icon = 'university';
-		for($n = 1; $n <= 6; $n++) {
-			$f->addOption("h$n"); 
+		$optionals = $this->inputfield->optionals;
+		if(in_array('headlines', $optionals)) {
+			$fieldset->add($this->configHeadlines());
 		}
-		$f->val($this->inputfield->headlines);
-		$f->optionColumns = 1;
-		$f->themeOffset = 1;
-		$fieldset->add($f);
-		
-		$f = $fieldset->InputfieldText; 
-		$f->attr('name', 'contextmenu'); 
-		$f->label = $this->_('Context menu tools'); 
-		$f->icon = 'sticky-note';
-		$f->description = 
-			$this->_('Tools to show in the context menu that appears when right-clicking an element.') . ' ' . 
-			$this->_('Only the tools relevant to the element will be shown on right-click.');
-		$value = $this->inputfield->contextmenu;
-		$f->val($value);
-		$f->notes = $defaultLabel . $defaults['contextmenu'];
-		if($value === $defaults['contextmenu'] || empty($value)) $f->collapsed = Inputfield::collapsedYes;
-		$f->themeOffset = 1;
-		$fieldset->add($f);
-		
-		$f = $fieldset->InputfieldText;
-		$f->attr('name', 'removed_menuitems');
-		$f->label = $this->_('Tools to remove from the menubar');
-		$f->icon = 'wrench';
-		$f->description =
-			$this->_('The menubar is built according to module default settings and installed plugins.') . ' ' .
-			$this->_('If there are tools you do not want showing in the menubar enter their names here.');
-		$f->notes = $this->_('See the toolbar setting for all possible tool names.'); 
-		$value = $this->inputfield->removed_menuitems;
-		$f->val($value); 
-		if($value === $defaults['removed_menuitems'] || empty($value)) $f->collapsed = Inputfield::collapsedYes;
-		$f->notes = $defaultLabel . $defaults['removed_menuitems'];
-		$f->themeOffset = 1;
-		if(!$inContext) $f->showIf = 'features=menubar';
-		$fieldset->add($f);
-		
+		if(in_array('contextmenu', $optionals)) {
+			$fieldset->add($this->configContextmenu($defaults['contextmenu']));
+		}
+		if(in_array('removed_menuitems', $optionals)) {
+			$f = $this->configRemovedMenuitems($defaults['removed_menuitems']);
+			if(!$inContext) $f->showIf = 'features=menubar';
+			$fieldset->add($f);
+		}
+		if(in_array('styleFormatsCSS', $optionals)) {
+			$fieldset->add($this->configStyleFormatsCSS());
+		}
+		if(in_array('invalid_styles', $optionals)) {
+			$fieldset->add($this->configInvalidStyles($defaults['invalid_styles']));
+		}
+
 		$f = $fieldset->InputfieldCheckboxes;
 		$f->attr('name', 'toggles');
 		$f->label = $this->_('Markup toggles');
@@ -691,80 +665,45 @@ class InputfieldTinyMCEConfigHelper extends Wire {
 		$f->collapsed = Inputfield::collapsedYes;
 		$f->themeOffset = 1;
 		$fieldset->add($f);
+	
+		if(in_array('settingsJSON', $optionals)) {
+			$label = $this->_('Custom settings JSON');
+			$f = $fieldset->InputfieldTextarea;
+			$f->attr('name', 'settingsJSON');
+			$f->label = "$label " . $this->label('text');
+			$f->icon = 'file-code-o';
+			$f->description = $this->_('Enter JSON of any additional custom settings you’d like to add that are not indicated in the settings above.');
+			$f->collapsed = Inputfield::collapsedBlank;
+			$f->notes = $exampleLabel . '`{ "invalid_styles": "color font-size font-family line-height" }`';
+			$value = $this->inputfield->settingsJSON;
+			$f->val($value);
+			if($value && !$isPost) {
+				$this->tools()->jsonDecode($value, $f->label); // test decode
+			}
+			$f->themeOffset = 1;
+			$fieldset->add($f);
 		
-		$f = $fieldset->InputfieldTextarea;
-		$f->attr('name', 'styleFormatsCSS'); 
-		$f->label = $this->_('CSS classes for custom styles'); 
-		$f->description =
-			$this->_('This enables you to add additional items to the “Styles” toolbar dropdown as CSS classes.') . ' ' . 
-			$this->_('Optionally prefix with `#Headings`, `#Blocks`, `#Inline`, `#Align`, or your own `#Id` to add to a Styles dropdown submenu.') . ' ' . 
-			$this->_('You can use a CSS comment to provide the menu label, i.e. `/\* Red Text \*/`.') . ' ' . 
-			$this->_('You can omit the class (and optionally styles) if you just want to make the element available in your Styles dropdown, i.e. `ins {}`.') . ' ' . 
-			$this->_('You can specify any styles in UPPERCASE to also force them into inline styles in the markup, i.e. `span.alert { COLOR: red; }`.');
-		$f->val($this->inputfield->styleFormatsCSS);
-		$f->notes = "$exampleLabel\n" . 
-			"`#Inline span.red-text { color: red; } /\* Red Text \*/`\n" .
-			"`#Blocks p.outline { padding: 20px; border: 1px dotted #ccc; } /\* Outline paragraph \*/`\n" .
-			"`img.border { border: 1px solid #ccc; padding: 2px; } /\* Image with border \*/`\n" . 
-			"`#Hello ins {} /\* Insert text \*/`\n" .
-			"`#Hello del { text-decoration: line-through; } /\* Delete text \*/`\n" .
-			"`#Hello span.alert { BACKGROUND: red; COLOR: white; } /\* Alert text \*/`";
-		$f->detail = 
-			$this->_('Note that this is only for the editor.') . ' ' . 
-			$this->_('You will likely want to add similar CSS classes (without the #IDs) to your front-end site stylesheet.'); 
-		$f->themeOffset = 1;
-		$f->icon = 'css3';
-		$f->collapsed = Inputfield::collapsedBlank;
-		$fieldset->add($f);
-		
-		$f = $fieldset->InputfieldText; 
-		$f->attr('name', 'invalid_styles'); 
-		$f->label = $this->_('Invalid styles'); 
-		$f->description = $this->_('Space-separated list of inline styles that should be disallowed in markup style attributes.'); 
-		$f->notes = $exampleLabel . " `font-size font-family line-height`";
-		$value = $this->inputfield->invalid_styles;
-		$f->val($value);
-		if(empty($value) || $value === $defaults['invalid_styles']) $f->collapsed = Inputfield::collapsedYes;
-		$f->themeOffset = 1;
-		$f->icon = 'eye-slash';
-		$fieldset->add($f);
-		
-		$label = $this->_('Custom settings JSON'); 
-		$f = $fieldset->InputfieldTextarea;
-		$f->attr('name', 'settingsJSON');
-		$f->label = "$label " . $this->label('text');
-		$f->icon = 'file-code-o';
-		$f->description = $this->_('Enter JSON of any additional custom settings you’d like to add that are not indicated in the settings above.'); 
-		$f->collapsed = Inputfield::collapsedBlank;
-		$f->notes = $exampleLabel . '`{ "invalid_styles": "color font-size font-family line-height" }`';
-		$value = $this->inputfield->settingsJSON;
-		$f->val($value);
-		if($value && !$isPost) {
-			$this->inputfield->tools()->jsonDecode($value, $f->label); // test decode
+			$f = $fieldset->InputfieldURL;
+			$f->attr('name', 'settingsFile');
+			$f->label = "$label " . $this->label('file');
+			$f->icon = 'file-code-o';
+			$f->description =
+				$this->_('Enter the path to a custom settings JSON file relative to the ProcessWire installation root directory.') . ' ' .
+				$this->_('Use this to specify custom settings beyond those supported above.');
+			$f->attr('placeholder', '/dir/to/custom-settings.json');
+			$exampleUrl = $config->urls($this->inputfield) . 'defaults.json';
+			$f->notes =
+				sprintf($this->_('See an example settings JSON file here: [defaults.json](%s).'), $exampleUrl);
+			$f->collapsed = Inputfield::collapsedBlank;
+			$value = $this->inputfield->settingsFile;
+			$f->val($value);
+			if($value && !$isPost) {
+				$value = $config->urls->root . ltrim($value, '/');
+				$this->tools()->jsonDecodeFile($value, $f->label); // test decode
+			}
+			$f->themeOffset = 1;
+			$fieldset->add($f);
 		}
-		$f->themeOffset = 1;
-		$fieldset->add($f);
-
-		$f = $fieldset->InputfieldURL;
-		$f->attr('name', 'settingsFile'); 
-		$f->label = "$label " . $this->label('file');
-		$f->icon = 'file-code-o';
-		$f->description = 
-			$this->_('Enter the path to a custom settings JSON file relative to the ProcessWire installation root directory.') . ' ' . 
-			$this->_('Use this to specify custom settings beyond those supported above.');
-		$f->attr('placeholder', '/dir/to/custom-settings.json'); 
-		$exampleUrl = $config->urls($this->inputfield) . 'defaults.json'; 
-		$f->notes = 
-			sprintf($this->_('See an example settings JSON file here: [defaults.json](%s).'), $exampleUrl); 
-		$f->collapsed = Inputfield::collapsedBlank;
-		$value = $this->inputfield->settingsFile;
-		$f->val($value);
-		if($value && !$isPost) {
-			$value = $config->urls->root . ltrim($value, '/');
-			$this->inputfield->tools()->jsonDecodeFile($value, $f->label); // test decode
-		}
-		$f->themeOffset = 1;
-		$fieldset->add($f);
 	
 		return $fieldset;
 	}
@@ -783,6 +722,12 @@ class InputfieldTinyMCEConfigHelper extends Wire {
 		$exampleLabel = $this->label('example');
 		$customLabel = $this->label('custom');
 		$isPost = $this->wire()->input->requestMethod('POST');
+		
+		$fieldset = $inputfields->InputfieldFieldset;
+		$fieldset->label = $this->_('TinyMCE');
+		$fieldset->icon = 'keyboard-o';
+		$fieldset->attr('name', '_tinymce');
+		$inputfields->add($fieldset);
 
 		$label = $this->_('UI style/skin');
 		$icon = 'paint-brush';
@@ -796,7 +741,8 @@ class InputfieldTinyMCEConfigHelper extends Wire {
 		$f->addOption('custom', $customLabel);
 		$f->val($this->inputfield->skin);
 		$f->icon = $icon;
-		$inputfields->add($f);
+		//$f->themeOffset = 1;
+		$fieldset->add($f);
 		
 		$f = $inputfields->InputfieldURL;
 		$f->attr('name', 'skin_url');
@@ -810,7 +756,8 @@ class InputfieldTinyMCEConfigHelper extends Wire {
 		$f->val($this->inputfield->skin_url);
 		$f->showIf = 'skin=custom';
 		$f->icon = $icon;
-		$inputfields->add($f);
+		//$f->themeOffset = 1;
+		$fieldset->add($f);
 
 		$label = $this->_('Content style');
 		$icon = 'css3';
@@ -823,18 +770,23 @@ class InputfieldTinyMCEConfigHelper extends Wire {
 		$f->optionColumns = 1;
 		$f->val($this->inputfield->content_css);
 		$f->icon = $icon;
-		$inputfields->add($f);
+		//$f->themeOffset = 1;
+		$fieldset->add($f);
 		
 		$f = $inputfields->InputfieldURL;
 		$f->attr('name', 'content_css_url');
 		$f->label = "$label ($customLabel)";
 		$f->description = $this->_('Enter a URL/path to a custom content CSS file.') . ' ' . $relativeLabel;
-		$f->notes = sprintf($this->_('Examples can be found in `%s`.'), $config->urls($this->inputfield) . 'content_css/');
+		$examplesUrl = 'https://github.com/ryancramerdesign/InputfieldTinyMCE/tree/master/content_css';
+		$f->notes = sprintf(
+			$this->_('Examples can be found in %s.'), 
+			"[" . $config->urls($this->inputfield) . "content_css/]($examplesUrl)"
+		);
 		$f->val($this->inputfield->content_css_url);
 		$f->showIf = 'content_css=custom';
 		$f->attr('placeholder', $exampleLabel . '/site/templates/styles/mycontent.css');
 		$f->icon = $icon;
-		$inputfields->add($f);
+		$fieldset->add($f);
 		
 		$f = $inputfields->InputfieldTextarea;
 		$f->attr('name', 'extPluginOpts'); 
@@ -849,23 +801,75 @@ class InputfieldTinyMCEConfigHelper extends Wire {
 			$this->_('Adding or removing plugin from the API:') . "\n" . 
 			'`' . 
 			'$tinymce = $modules->get("InputfieldTinyMCE");' . "\n" . 
-			'$tinymce->configHelper()->addPlugin("/site/modules/MyModule/myplugin.js");' . "\n" .
-			'$tinymce->configHelper()->removePlugin("/site/modules/MyModule/myplugin.js");' . 
-			'`';
+			'$tinymce->addPlugin("/site/modules/MyModule/myplugin.js");' . "\n" .
+			'$tinymce->removePlugin("/site/modules/MyModule/myplugin.js");' .  
+			'`' . "\n" . 
+			$this->_('Call addPlugin() once at install and removePlugin() once at uninstall.');
 		$f->placeholder = "/site/templates/tinymce-plugins/hello-world.js\n/site/modules/SomeModule/some-plugin.js";
 		$f->val($this->inputfield->extPluginOpts);
 		$f->collapsed = Inputfield::collapsedBlank;
-		$inputfields->add($f);
-		
-		/*
-		// @todo
-		$f = $inputfields->InputfieldTextarea;
-		$f->attr('name', 'invalid_styles');
-		$f->label = 'Invalid styles';
-		$f->val('');
-		$inputfields->add($f);
-		*/	
+		$f->themeOffset = 1;
+		$fieldset->add($f);
 	
+		$f = $inputfields->InputfieldCheckboxes;
+		$f->attr('name', 'optionals');
+		$f->label = $this->_('Optional settings configurable per-field'); 
+		$f->icon = 'sliders';
+		$f->table = true;
+		$f->description = 
+			$this->_('Check boxes for additional settings you would like to be configurable individually for *every single TinyMCE field.*') . ' ' . 
+			$this->_('Settings NOT checked are configurable here instead (on this screen), and their values apply to all TinyMCE fields.') . ' ' . 
+		$f->notes = 
+			$this->_('After changing your selections here you should save as it will hide or reveal additional fields below this.');
+		$f->addOption('headlines',
+			'**' . $this->_('Headlines') . '**|' .
+			$this->_('Specify which headline options should appear in the “Styles” and “Blocks” dropdowns.')
+		);
+		$f->addOption('contextmenu', 
+			'**' . $this->_('Context menu') . '**|' . 
+			$this->_('Specify which options should appear in a context menu when you right-click an element.')
+		);
+		$f->addOption('removed_menuitems',
+			'**' . $this->_('Removed menu items') . '**|' .
+			$this->_('Specify which tools should be removed from the menubar (when used).')
+		);
+		$f->addOption('styleFormatsCSS',
+			'**' . $this->_('Custom style formats CSS') . '**|' .
+			$this->_('Use CSS classes to create custom styles to add to the “Styles” dropdown.')
+		);
+		$f->addOption('invalid_styles',
+			'**' . $this->_('Invalid styles') . '**|' .
+			$this->_('Specify which inline styles are disallowed from appearing in markup (i.e. line-height, font-size, etc.).')
+		);
+		$f->addOption('settingsJSON',
+			'**' . $this->_('Custom JSON settings') . '**|' .
+			$this->_('Enables you to add custom settings for each field with a JSON file or string.')
+		);
+		$optionals = $this->inputfield->optionals;
+		$f->val($optionals);
+		$f->themeOffset = 1;
+		$fieldset->add($f);
+		$defaults = $this->settings()->getDefaults();
+
+		if(!in_array('headlines', $optionals)) {
+			$fieldset->add($this->configHeadlines());
+		}
+		if(!in_array('contextmenu', $optionals)) {
+			$fieldset->add($this->configContextmenu($defaults['contextmenu'])); 
+		}
+		if(!in_array('menubar', $optionals)) {
+			$fieldset->add($this->configMenubar($defaults['menubar']));
+		}
+		if(!in_array('removed_menuitems', $optionals)) {
+			$fieldset->add($this->configRemovedMenuitems($defaults['removed_menuitems']));
+		}
+		if(!in_array('styleFormatsCSS', $optionals)) {
+			$fieldset->add($this->configStyleFormatsCSS());
+		}
+		if(!in_array('invalid_styles', $optionals)) {
+			$fieldset->add($this->configInvalidStyles($defaults['invalid_styles']));
+		}
+
 		$label = $this->_('Default setting overrides JSON');
 		$f = $inputfields->InputfieldTextarea;
 		$f->attr('name', 'defaultsJSON');
@@ -876,8 +880,9 @@ class InputfieldTinyMCEConfigHelper extends Wire {
 		$f->notes = 'Example: `{ "block_formats": "Paragraph=p; Header 2=h2; Header 3=h3" }`';
 		$value = $this->inputfield->defaultsJSON;
 		$f->val($value);
-		if($value && !$isPost) $this->inputfield->tools()->jsonDecode($value, 'defaultsJSON'); // test decode
-		$inputfields->add($f);
+		if($value && !$isPost) $this->tools()->jsonDecode($value, 'defaultsJSON'); // test decode
+		$f->themeOffset = 1;
+		$fieldset->add($f);
 
 		$f = $inputfields->InputfieldURL;
 		$f->attr('name', 'defaultsFile');
@@ -890,15 +895,17 @@ class InputfieldTinyMCEConfigHelper extends Wire {
 		$f->collapsed = Inputfield::collapsedBlank;
 		$value = $this->inputfield->defaultsFile;
 		$f->val($value);
-		if($value && !$isPost) $this->inputfield->tools()->jsonDecodeFile($value, 'defaultsFile'); // test decode
-		$inputfields->add($f);
+		if($value && !$isPost) $this->tools()->jsonDecodeFile($value, 'defaultsFile'); // test decode
+		$f->themeOffset = 1;
+		$fieldset->add($f);
 
 		if($languages) {
 			$fieldset = $inputfields->InputfieldFieldset;
 			$fieldset->attr('name', '_langPacks');
-			$fieldset->label = $this->_('Language translations');
+			$fieldset->label = $this->_('TinyMCE language translations');
 			$fieldset->description = $this->_('Select translation pack to use for each language.');
 			$fieldset->icon = 'globe';
+			$fieldset->themeOffset = 1;
 			$inputfields->add($fieldset);
 			$langPacks = array('en_US' => 'en_US');
 			foreach(new \DirectoryIterator(__DIR__ . '/langs/') as $file) {
@@ -913,7 +920,7 @@ class InputfieldTinyMCEConfigHelper extends Wire {
 				$value = $this->inputfield->get($name);
 				if($value === null) {
 					$languages->setLanguage($language);	
-					$value = $this->inputfield->settings()->getLanguagePackCode();
+					$value = $this->settings()->getLanguagePackCode();
 					$languages->unsetLanguage();
 				}
 				$f = $inputfields->InputfieldSelect;
@@ -957,6 +964,129 @@ class InputfieldTinyMCEConfigHelper extends Wire {
 		return $a;
 	}
 
+	/**
+	 * @return InputfieldTextarea
+	 * 
+	 */
+	protected function configStyleFormatsCSS() {
+		/** @var InputfieldTextarea $f */
+		$f = $this->wire()->modules->get('InputfieldTextarea');
+		$f->attr('name', 'styleFormatsCSS');
+		$f->label = $this->_('Custom style formats CSS');
+		$f->description =
+			$this->_('This enables you to add additional items to the “Styles” toolbar dropdown as CSS classes.') . ' ' .
+			$this->_('Optionally prefix with `#Headings`, `#Blocks`, `#Inline`, `#Align`, or your own `#Id` to add to a Styles dropdown submenu.') . ' ' .
+			$this->_('You can use a CSS comment to provide the menu label, i.e. `/\* Red Text \*/`.') . ' ' .
+			$this->_('You can omit the class (and optionally styles) if you just want to make the element available in your Styles dropdown, i.e. `ins {}`.') . ' ' .
+			$this->_('You can specify any styles in UPPERCASE to also force them into inline styles in the markup, i.e. `span.alert { COLOR: red; }`.');
+		$f->val($this->inputfield->styleFormatsCSS);
+		$f->notes = $this->label('example') . "\n" .
+			"`#Inline span.red-text { color: red; } /\* Red Text \*/`\n" .
+			"`#Blocks p.outline { padding: 20px; border: 1px dotted #ccc; } /\* Outline paragraph \*/`\n" .
+			"`img.border { border: 1px solid #ccc; padding: 2px; } /\* Image with border \*/`\n" .
+			"`#Hello ins {} /\* Insert text \*/`\n" .
+			"`#Hello del { text-decoration: line-through; } /\* Delete text \*/`\n" .
+			"`#Hello span.alert { BACKGROUND: red; COLOR: white; } /\* Alert text \*/`";
+		$f->detail =
+			$this->_('Note that this is only for the editor.') . ' ' .
+			$this->_('You will likely want to add similar CSS classes (without the #IDs) to your front-end site stylesheet, unless forcing inline styles.');
+		$f->themeOffset = 1;
+		$f->icon = 'css3';
+		$f->collapsed = Inputfield::collapsedBlank;
+		return $f;
+	}
+	
+	protected function configInvalidStyles($defaultValue) {
+		/** @var InputfieldText $f */
+		$f = $this->wire()->modules->get('InputfieldText'); 
+		$f->attr('name', 'invalid_styles');
+		$f->label = $this->_('Invalid styles');
+		$f->description = 
+			$this->_('Space-separated list of inline styles that should be disallowed in markup style attributes.') . ' ' . 
+			$this->label('useDefault');
+		$f->notes = $this->label('default') . " `$defaultValue`";
+		$value = $this->inputfield->invalid_styles;
+		if($value === $defaultValue) $value = 'default';
+		$f->val($value);
+		if(empty($value) || $value === 'default') $f->collapsed = Inputfield::collapsedYes;
+		$f->themeOffset = 1;
+		$f->icon = 'eye-slash';
+		return $f;
+	}
+
+	protected function configMenubar($defaultValue) {
+		/** @var InputfieldText $f */
+		$f = $this->wire()->modules->get('InputfieldText');
+		$f->attr('name', 'menubar');
+		$f->label = $this->_('Menubar dropdowns');
+		$f->icon = 'toggle-down';
+		$f->description =
+			$this->_('The top level dropdown items to display in the menubar.') . ' ' . 
+			$this->label('useDefault') . ' ' . 
+			'[' . $this->label('details') . '](https://www.tiny.cloud/docs/tinymce/6/menus-configuration-options/#menubar)';
+			
+		$value = $this->inputfield->menubar;
+		if($value === $defaultValue) $value = 'default';
+		$f->val($value);
+		$f->notes = $this->label('default') . "`$defaultValue`";
+		if($value === 'default' || empty($value)) $f->collapsed = Inputfield::collapsedYes;
+		$f->themeOffset = 1;
+		return $f;
+	}
+	
+	protected function configRemovedMenuitems($defaultValue) {
+		/** @var InputfieldText $f */
+		$f = $this->wire()->modules->get('InputfieldText');
+		$f->attr('name', 'removed_menuitems');
+		$f->label = $this->_('Tools to remove from the menubar');
+		$f->icon = 'wrench';
+		$f->description =
+			$this->_('The menubar is built according to module default settings and installed plugins.') . ' ' .
+			$this->_('If there are tools you do not want showing in the menubar enter their names here.') . ' ' . 
+			$this->label('useDefault');
+		$f->notes = $this->label('default') . "`$defaultValue`";
+		$value = $this->inputfield->removed_menuitems;
+		if($value === $defaultValue) $value = 'default';
+		$f->val($value);
+		if($value === 'default' || empty($value)) $f->collapsed = Inputfield::collapsedYes;
+		$f->themeOffset = 1;
+		return $f; 
+	}
+	
+	protected function configContextmenu($defaultValue) {
+		/** @var InputfieldText $f */
+		$f = $this->wire()->modules->get('InputfieldText');
+		$f->attr('name', 'contextmenu');
+		$f->label = $this->_('Context menu tools');
+		$f->icon = 'sticky-note';
+		$f->description =
+			$this->_('Tools to show in the context menu that appears when right-clicking an element.') . ' ' .
+			$this->_('Only the tools relevant to the element will be shown on right-click.') . ' ' . 
+			$this->label('useDefault');
+		$value = $this->inputfield->contextmenu;
+		if($value === $defaultValue) $value = 'default';
+		$f->val($value);
+		$f->notes = $this->label('default') . "`$defaultValue`";
+		if($value === 'default' || empty($value)) $f->collapsed = Inputfield::collapsedYes;
+		$f->themeOffset = 1;
+		return $f;
+	}
+
+	protected function configHeadlines() {
+		$f = $this->wire()->modules->get('InputfieldCheckboxes');
+		$f->attr('name', 'headlines');
+		$f->label = $this->_('Headline options');
+		$f->description = $this->_('Select which headlines should be available in the “blocks” and/or “styles” dropdowns.');
+		$f->icon = 'university';
+		for($n = 1; $n <= 6; $n++) {
+			$f->addOption("h$n");
+		}
+		$f->val($this->inputfield->headlines);
+		$f->optionColumns = 1;
+		$f->themeOffset = 1;
+		return $f;
+	}
+	
 	/**
 	 * Add an external plugin .js file
 	 * 

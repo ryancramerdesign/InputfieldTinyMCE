@@ -9,54 +9,7 @@
  * https://processwire.com
  *
  */
-class InputfieldTinyMCESettings extends Wire {
-
-	/**
-	 * @var InputfieldTinyMCE 
-	 * 
-	 */
-	protected $inputfield;
-
-	/**
-	 * HTML5 inline elements that should be "inline" designation in style_formats
-	 * 
-	 * These elements can be inserted from Styles dropdown, if defined in style_formats.
-	 * 
-	 * @var string 
-	 * 
-	 */
-	static protected $inlines =
-		'/a/abbr/acronym/b/bdi/bdo/big/br/button/cite/code/' .
-		'/del/dfn/em/i/ins/kbd/label/mark/meter/' .
-		'/q/s/samp/small/span/strong/' .
-		'/sub/sup/time/u/tt/var/wbr/';
-
-	/**
-	 * HTML5 block elements that should use "block" designation in style_formats
-	 * 
-	 * These elements can be inserted from Styles dropdown, if defined in style_formats.
-	 * 
-	 * @var string 
-	 * 
-	 */
-	static protected $blocks =
-		'/address/article/aside/blockquote/dd/details/div/dl/dt/' .
-		'/footer/h1/h2/h3/h4/h5/h6/header/hgroup/hr/li/main/nav/ol/p/pre/' .
-		'/section/table/ul/';
-
-	/**
-	 * HTML5 block or inline elements that should use "selector" designation in style_formats
-	 * 
-	 * These elements (and any others not defined above) cannot be inserted by selection but 
-	 * existing elements can be applied. For reference only, nothing uses this variable.
-	 * 
-	 * @var string 
-	 * 
-	 */
-	static protected $inlineBlocks =
-		'/fieldset/figcaption/figure/form/dialog/form/' . 
-		'/audio/canvas/data/datalist/img/iframe/embed/input/map/noscript/object/output/' . 
-		'/picture/progress/ruby/select/slot/svg/template/textarea/video/';
+class InputfieldTinyMCESettings extends InputfieldTinyMCEClass {
 
 	/**
 	 * Runtime caches shared among all instances
@@ -72,18 +25,6 @@ class InputfieldTinyMCESettings extends Wire {
 		'langSettings' => array(), 
 	);
 
-	/**
-	 * Construct
-	 * 
-	 * @param InputfieldTinyMCE $inputfield
-	 * 
-	 */
-	public function __construct(InputfieldTinyMCE $inputfield) {
-		parent::__construct();
-		$inputfield->wire($this);
-		$this->inputfield = $inputfield;
-	}
-	
 	/**
 	 * Get settings from Inputfield vary from the $defaults
 	 *
@@ -101,16 +42,20 @@ class InputfieldTinyMCESettings extends Wire {
 
 		$settings = array();
 		$features = $inputfield->get('features');
+		$formats = $this->formats();
 		
 		if(!is_array($features)) $features = $this->inputfield->features;
 
-		$useInline = in_array('inline', $features);
-
 		foreach($defaults as $name => $defaultValue) {
 			if($name === 'menubar') {
-				$value = in_array($name, $features);
+				if(in_array($name, $features)) {
+					$value = $inputfield->get('menubar');
+					if(empty($value) || $value === 'default') $value = $defaultValue;
+				} else {
+					$value = false;
+				}
 			} else if($name === 'statusbar') {
-				$value = $useInline ? in_array($name, $features) : true;
+				$value = true;
 			} else if($name === 'browser_spellcheck') {
 				$value = in_array('spellcheck', $features);
 			} else if($name === 'toolbar') {
@@ -126,11 +71,19 @@ class InputfieldTinyMCESettings extends Wire {
 			} else if($name === 'directionality') {
 				$value = $this->inputfield->getDirectionality();
 			} else if($name === 'style_formats') {
-				$value = $this->getStyleFormats($defaults);
+				$value = $formats->getStyleFormats($defaults);
 			} else if($name === 'block_formats') {
-				$value = $this->getBlockFormats();
+				$value = $formats->getBlockFormats();
+			} else if($name === 'formats') {
+				// overlaps with native formats property so use data rather than get
+				$value = $inputfield->data('formats'); 
 			} else {
 				$value = $inputfield->get($name);
+				if($value === 'default') $value = $defaultValue;
+			}
+			if($name === 'removed_menuitems' && strpos($value, 'print') === false) {
+				// the print option is not useful in inline mode
+				if($this->inputfield->inlineMode) $value = trim("$value print");
 			}
 			if($value !== null && $value != $defaultValue) {
 				$settings[$name] = $value;
@@ -143,7 +96,7 @@ class InputfieldTinyMCESettings extends Wire {
 		if(isset($defaults['style_formats'])) {
 			$styleFormatsCSS = $inputfield->get('styleFormatsCSS');
 			if($styleFormatsCSS) {
-				$this->applyStyleFormatsCSS($styleFormatsCSS, $settings, $defaults);
+				$formats->applyStyleFormatsCSS($styleFormatsCSS, $settings, $defaults);
 			}
 		}
 
@@ -157,17 +110,21 @@ class InputfieldTinyMCESettings extends Wire {
 	 *
 	 * This should have no field-specific settings (no dynamic values)
 	 *
+	 * @property string $key
 	 * @return array
 	 *
 	 */
-	public function getDefaults() {
+	public function getDefaults($key = '') {
 		
-		if(!empty(self::$caches['defaults'])) return self::$caches['defaults'];
+		if(!empty(self::$caches['defaults'])) {
+			if($key) return isset(self::$caches['defaults'][$key]) ? self::$caches['defaults'][$key] : null;
+			return self::$caches['defaults'];
+		}
 
 		$config = $this->wire()->config;
 		$root = $config->urls->root;
 		$url = $config->urls($this->inputfield);
-		$tools = $this->inputfield->tools();
+		$tools = $this->tools();
 
 		// root relative, i.e. '/site/modules/InputfieldTinyMCE/'
 		$url = substr($url, strlen($root)-1);
@@ -204,6 +161,8 @@ class InputfieldTinyMCESettings extends Wire {
 		if(!empty($languageSettings)) $defaults = array_merge($defaults, $languageSettings);
 		
 		self::$caches['defaults'] = $defaults;
+		
+		if($key) return isset($defaults[$key]) ? $defaults[$key] : null;
 		
 		return $defaults;
 	}
@@ -292,106 +251,6 @@ class InputfieldTinyMCESettings extends Wire {
 	}
 
 	/**
-	 * Get style_formats
-	 * 
-	 * @param array $defaults
-	 * @return array|mixed
-	 * 
-	 */
-	protected function getStyleFormats(array $defaults) {
-		
-		/*
-		'style_formats' => array(
-			array(
-				'title' => 'Headings',
-				'items' => array(
-					array('title' => 'Heading 1', 'format' => 'h1'),
-					array('title' => 'Heading 2', 'format' => 'h2'),
-					array('title' => 'Heading 3', 'format' => 'h3'),
-					array('title' => 'Heading 4', 'format' => 'h4'),
-					array('title' => 'Heading 5', 'format' => 'h5'),
-					array('title' => 'Heading 6', 'format' => 'h6')
-				)
-			),
-		*/
-
-		$headlines = $this->inputfield->headlines;
-		$headlines = array_flip($headlines);
-		
-		$formats = $defaults['style_formats'];
-		
-		foreach($formats as $key => $format) {
-			if(!is_array($format)) continue;
-			if($format['title'] === 'Headings') {
-				foreach($format['items'] as $k => $item) {
-					if(empty($item['format'])) continue;
-					$tag = $item['format'];
-					if(!isset($headlines[$tag])) unset($formats[$key]['items'][$k]);
-				}
-				$formats[$key]['items'] = array_values($formats[$key]['items']);
-				break;
-			}	
-		}
-		
-		return $formats;
-	}
-
-	/**
-	 * Merge the given style formats
-	 * 
-	 * @param array $styleFormats
-	 * @param array $addFormats
-	 * @return array
-	 * 
-	 */
-	public function mergeStyleFormats(array $styleFormats, array $addFormats) {
-		$a = array();
-		foreach($styleFormats as $value) {
-			if(empty($value['title'])) continue;
-			$title = $value['title'];
-			$a[$title] = $value; 
-		}
-		$styleFormats = $a; 
-		foreach($addFormats as $value) {
-			if(empty($value['title'])) continue;
-			$title = $value['title'];
-			if(isset($styleFormats[$title])) {
-				if(isset($styleFormats[$title]['items'])) {
-					if(isset($value['items'])) {
-						$styleFormats[$title]['items'] = array_merge($styleFormats[$title]['items'], $value['items']);
-					}
-				} else {
-					$styleFormats[$title] = array(
-						'title' => $title, 
-						'items' => $value,
-					);
-				}
-			} else {
-				$styleFormats[$title] = $value; 
-			}
-		}
-		return array_values($styleFormats);
-	}
-
-	/**
-	 * Get block_formats
-	 * 
-	 * @return string
-	 * 
-	 */
-	protected function getBlockFormats() {
-		// 'block_formats' => 'Paragraph=p; Heading 1=h1; Heading 2=h2; Heading 3=h3; Heading 4=h4; Heading 5=h5; Heading 6=h6;',
-		$values = array('Paragraph=p;');
-		$headlines = $this->inputfield->get('headlines');
-		foreach($headlines as $h) {
-			$n = ltrim($h, 'h');
-			$values[] = "Heading $n=$h;";
-		}
-		return implode(' ', $values);
-	}
-
-
-	/**
 	 * Get settings from custom settings file
 	 * 
 	 * @return array
@@ -401,7 +260,7 @@ class InputfieldTinyMCESettings extends Wire {
 		$file = $this->inputfield->get('settingsFile');
 		if(empty($file)) return array();
 		$file = $this->wire()->config->paths->root . ltrim($file, '/'); 
-		return $this->inputfield->tools()->jsonDecodeFile($file, 'settingsFile');	
+		return $this->tools()->jsonDecodeFile($file, 'settingsFile');	
 	}
 
 	/**
@@ -413,7 +272,7 @@ class InputfieldTinyMCESettings extends Wire {
 	protected function getFromSettingsJSON() {
 		$json = trim((string) $this->inputfield->get('settingsJSON'));
 		if(empty($json)) return array();
-		return $this->inputfield->tools()->jsonDecode($json, 'settingsJSON');
+		return $this->tools()->jsonDecode($json, 'settingsJSON');
 	}
 
 	/**
@@ -429,8 +288,16 @@ class InputfieldTinyMCESettings extends Wire {
 		$rootUrl = $config->urls->root;
 		$defaultUrl = $config->urls($this->inputfield) . 'content_css/wire.css';
 		
+		if($this->inputfield->useFeature('document')) {
+			$content_css = 'document';
+		}
+
 		if(empty($content_css)) {
-			$content_css = $this->inputfield->content_css;
+			if($this->inputfield->useFeature('document')) {
+				$content_css = 'document';
+			} else {
+				$content_css = $this->inputfield->content_css;
+			}
 		}
 		
 		if($content_css === 'wire' || empty($content_css)) {
@@ -461,7 +328,6 @@ class InputfieldTinyMCESettings extends Wire {
 
 		return $url;
 	}
-
 
 	/**
 	 * Prepare given settings ready for output
@@ -607,7 +473,7 @@ class InputfieldTinyMCESettings extends Wire {
 		// apply add_style_formats when present
 		if(isset($addSettings['add_style_formats'])) {
 			$styleFormats = isset($settings['style_formats']) ? $settings['style_formats'] : $defaults['style_formats'];
-			$settings['style_formats'] = $this->mergeStyleFormats($styleFormats, $addSettings['add_style_formats']);
+			$settings['style_formats'] = $this->formats()->mergeStyleFormats($styleFormats, $addSettings['add_style_formats']);
 			unset($addSettings['add_style_formats']);
 		}
 	
@@ -729,169 +595,6 @@ class InputfieldTinyMCESettings extends Wire {
 	}
 
 	/**
-	 * Add CSS that converts to style_formats and content_style
-	 * 
-	 * Easier-to-use alternative to the importcss plugin
-	 * 
-	 * @param string $css From the styleFormatsCSS setting
-	 * @param array $settings
-	 * @param array $defaults
-	 * 
-	 */
-	protected function applyStyleFormatsCSS($css, array &$settings, $defaults) {
-
-		$contentStyle = ''; // output for content_style
-		
-		// ensures each CSS rule has its own line
-		$css = trim(str_replace('}', "}\n", $css));
-		
-		// while(strpos($css, '} ') !== false) $css = str_replace('} ', '}', $css);
-		
-		// converts each CSS rule to be on single line with no newlines between "key:value;" rules
-		//$css = preg_replace('!\s*([{;:]|/\*|\*/)\s*!s', '\1', $css);
-		$css = preg_replace('!\s*([{;:]|/\*)\s*!s', '\1', $css);
-
-		//$css = preg_replace('!\}\s+/\*!s', '}/*', $css);
-
-		$lines = explode("\n", $css);
-		$formats = array(
-			// 'Headings' => array(), 
-			// 'Blocks' => array(),
-			// 'Inline' => array(),
-			// 'Align' => array(),
-			// 'Other' => array(), // converts to root level (no parent)
-		);
-		
-		// foreach($lines as $key => $line) {
-		while(count($lines)) {
-		
-			$line = array_shift($lines);
-			$line = trim($line);
-			$title = '';
-
-			if(empty($line)) continue;
-			if(strpos($line, '{') && strpos($line, '}') === false) {
-				// grab next line if a rule was started but not closed
-				$line .= array_shift($lines);
-			}
-			
-			if(strpos($line, '{') === false) continue; // line does not start a rule
-			
-			if(strpos($line, '/*') && preg_match('!/\*(.+)?\*/!', $line, $matches)) {
-				// line has comment indicating text label
-				$title = trim($matches[1]);
-				$line = str_replace($matches[0], '', $line); 
-			}
-			
-			list($selector, $styles) = explode('{', $line, 2);
-			list($styles,) = explode('}', $styles, 2);
-			
-			$selector = trim($selector);
-			
-			if(strpos($selector, '#') === 0) {
-				// indicates a submenu parent, i.e. #Blocks
-				list($parent, $selector) = explode(' ', $selector, 2);
-				$selector = trim($selector);
-				$parent = ucfirst(strtolower(ltrim($parent, '#')));
-			} else {
-				$parent = 'Other';
-			}
-			
-			if(strpos($selector, '.') !== false) {
-				// element with class, i.e. span.red-text or just .red-text
-				list($element, $class) = explode('.', $selector, 2);
-				$class = str_replace('.', ' ', $class);
-			} else {
-				// element only (no class), i.e. ins or del
-				$element = $selector;
-				$class = '';
-			}
-
-			$stylesStr = ''; // minified styles string
-			$inlineStyles = array(); // styles to also forced as inline styles on element
-			
-			foreach(explode(';', $styles) as $style) {
-				// i.e. color: red
-				if(strpos($style, ':') === false) continue;
-				list($k, $v) = explode(':', $style);
-				list($k, $v) = array(trim($k), trim($v));
-				if(strtoupper($k) === $k) {
-					// uppercase styles i.e. 'COLOR: red' become inline styles of element
-					$k = strtolower($k);
-					$inlineStyles[$k] = $v;
-				}
-				$stylesStr .= "$k:$v;";
-			}
-		
-			if($class) {
-				$contentStyle .= "$element.$class { $stylesStr } ";
-			} else {
-				$contentStyle .= "$element { $stylesStr } ";
-			}
-
-			if(empty($element)) $element = '*';
-			
-			$format = array(
-				'title' => ($title ? $title : $selector)
-			);
-
-			if(stripos(self::$inlines, "/$element/") !== false) {
-				$format['inline'] = $element;
-			} else if(strpos(self::$blocks, "/$element/") !== false) {
-				$format['block'] = $element;
-			} else {
-				$format['selector'] = $element;
-			}
-			
-			if($class) $format['classes'] = $class;
-			if(count($inlineStyles)) $format['styles'] = $inlineStyles;
-			if(!isset($formats[$parent])) $formats[$parent] = array();
-			
-			$formats[$parent][] = $format;
-		}
-		
-		$styleFormats = array();
-		
-		foreach($formats as $parent => $format) {
-			if($parent === 'Other') {
-				$styleFormats[$parent] = $format;
-			} else if(!isset($styleFormats[$parent])) {
-				$styleFormats[$parent] = array(
-					'title' => $parent,
-					'items' => $format,
-				);
-			}
-		}
-		
-		$other = isset($styleFormats['Other']) ? $styleFormats['Other'] : array();
-		unset($styleFormats['Other']);
-
-		$styleFormats = array_values($styleFormats);
-		if(count($other)) $styleFormats = array_merge($styleFormats, $other);
-	
-		// $css = trim(str_replace(array(';}', "\n"), array('}', ''), $css));
-		// $css = str_ireplace(array_values($parents), '', $css);
-		
-		// add to settings
-		if(isset($settings['style_formats'])) {
-			$settings['style_formats'] = $this->mergeStyleFormats($settings['style_formats'], $styleFormats);
-		} else if(isset($defaults['style_formats'])) {
-			$settings['style_formats'] = $this->mergeStyleFormats($defaults['style_formats'], $styleFormats);
-		} else {
-			$settings['style_formats'] = $styleFormats;
-		}
-		
-		if(isset($settings['content_style'])) {
-			$settings['content_style'] .= $contentStyle;
-		} else if(isset($defaults['content_style'])) {
-			$settings['content_style'] = $defaults['content_style'] . $contentStyle;
-		} else {
-			$settings['content_style'] = $contentStyle;
-		}
-		
-	}
-
-	/**
 	 * Apply settings settings to $this->inputfield to inherit from another field
 	 * 
 	 * This is called from the main InputfieldTinyMCE class. 
@@ -948,7 +651,7 @@ class InputfieldTinyMCESettings extends Wire {
 		// identify settings to apply
 		$data = array();
 
-		foreach($this->inputfield->getAllSettingNames() as $name) {
+		foreach($this->inputfield->getSettingNames(array('tinymce', 'field')) as $name) {
 			$value = $field->get($name);
 			if($value !== null) $data[$name] = $value;
 		}
