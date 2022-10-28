@@ -246,7 +246,8 @@ class InputfieldTinyMCEFormats extends InputfieldTinyMCEClass {
 			}
 
 			if($class) {
-				$contentStyle .= "$element.$class { $stylesStr } ";
+				$_class = str_replace(' ', '.', $class);
+				$contentStyle .= "$element.$_class { $stylesStr } ";
 			} else {
 				$contentStyle .= "$element { $stylesStr } ";
 			}
