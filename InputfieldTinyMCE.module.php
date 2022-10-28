@@ -68,7 +68,7 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 			'summary' => 'TinyMCE rich text editor version ' . self::mceVersion . '.',
 			'version' => 602,
 			'icon' => 'keyboard-o',
-			'requires' => 'MarkupHTMLPurifier',
+			'requires' => 'ProcessWire>=3.0.200, MarkupHTMLPurifier',
 		);
 	}
 
