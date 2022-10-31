@@ -845,6 +845,7 @@ class InputfieldTinyMCEConfigs extends InputfieldTinyMCEClass {
 		);
 		$f->val($this->inputfield->optionals);
 		$f->themeOffset = 1;
+		$fieldset->add($f);
 		foreach($optionals as $f) {
 			$f->showIf = "optionals!=$f->name";
 			$fieldset->add($f);
