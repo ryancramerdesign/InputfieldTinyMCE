@@ -641,6 +641,11 @@ class InputfieldTinyMCEConfigs extends InputfieldTinyMCEClass {
 		if(in_array('contextmenu', $optionals)) {
 			$fieldset->add($this->configContextmenu($defaults['contextmenu']));
 		}
+		if(in_array('menubar', $optionals)) {
+			$f = $this->configMenubar($defaults['menubar']);
+			if(!$inContext) $f->showIf = 'features=menubar';
+			$fieldset->add($f);
+		}
 		if(in_array('removed_menuitems', $optionals)) {
 			$f = $this->configRemovedMenuitems($defaults['removed_menuitems']);
 			if(!$inContext) $f->showIf = 'features=menubar';

@@ -142,6 +142,7 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 		),
 		'optionals' => array(
 			'contextmenu' => 'contextmenu',
+			'menubar' => 'menubar',
 			'removed_menuitems' => 'removed_menuitems',
 			'invalid_styles' => 'invalid_styles',
 			'styleFormatsCSS' => 'styleFormatsCSS',
