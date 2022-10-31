@@ -815,7 +815,16 @@ class InputfieldTinyMCEConfigs extends InputfieldTinyMCEClass {
 		$f->collapsed = Inputfield::collapsedBlank;
 		$f->themeOffset = 1;
 		$fieldset->add($f);
-	
+		
+		$defaults = $this->settings()->getDefaults();
+		$optionals = array(
+			$this->configHeadlines(),
+			$this->configContextmenu($defaults['contextmenu']),
+			$this->configMenubar($defaults['menubar']),
+			$this->configRemovedMenuitems($defaults['removed_menuitems']),
+			$this->configStyleFormatsCSS(),
+			$this->configInvalidStyles($defaults['invalid_styles']),
+		);
 		$f = $inputfields->InputfieldCheckboxes;
 		$f->attr('name', 'optionals');
 		$f->label = $this->_('Optional settings configurable per-field'); 
@@ -823,56 +832,22 @@ class InputfieldTinyMCEConfigs extends InputfieldTinyMCEClass {
 		$f->table = true;
 		$f->description = 
 			$this->_('Check boxes for additional settings you would like to be configurable individually for *every single TinyMCE field.*') . ' ' . 
-			$this->_('Settings NOT checked are configurable here instead (on this screen), and their values apply to all TinyMCE fields.') . ' ' . 
+			$this->_('Settings NOT checked are configurable here instead (on this screen), and their values apply to all TinyMCE fields.');
 		$f->notes = 
 			$this->_('After changing your selections here you should save as it will hide or reveal additional fields below this.');
-		$f->addOption('headlines',
-			'**' . $this->_('Headlines') . '**|' .
-			$this->_('Specify which headline options should appear in the “Styles” and “Blocks” dropdowns.')
-		);
-		$f->addOption('contextmenu', 
-			'**' . $this->_('Context menu') . '**|' . 
-			$this->_('Specify which options should appear in a context menu when you right-click an element.')
-		);
-		$f->addOption('removed_menuitems',
-			'**' . $this->_('Removed menu items') . '**|' .
-			$this->_('Specify which tools should be removed from the menubar (when used).')
-		);
-		$f->addOption('styleFormatsCSS',
-			'**' . $this->_('Custom style formats CSS') . '**|' .
-			$this->_('Use CSS classes to create custom styles to add to the “Styles” dropdown.')
-		);
-		$f->addOption('invalid_styles',
-			'**' . $this->_('Invalid styles') . '**|' .
-			$this->_('Specify which inline styles are disallowed from appearing in markup (i.e. line-height, font-size, etc.).')
-		);
+		foreach($optionals as $inputfield) {
+			$f->addOption($inputfield->name, "**$inputfield->label**|" . $inputfield->getSetting('summary|description')); 
+		}
+		// settingsJSON does not have a dedicated configurable here (since we already have defaultsJSON)
 		$f->addOption('settingsJSON',
 			'**' . $this->_('Custom JSON settings') . '**|' .
 			$this->_('Enables you to add custom settings for each field with a JSON file or string.')
 		);
-		$optionals = $this->inputfield->optionals;
-		$f->val($optionals);
+		$f->val($this->inputfield->optionals);
 		$f->themeOffset = 1;
-		$fieldset->add($f);
-		$defaults = $this->settings()->getDefaults();
-
-		if(!in_array('headlines', $optionals)) {
-			$fieldset->add($this->configHeadlines());
-		}
-		if(!in_array('contextmenu', $optionals)) {
-			$fieldset->add($this->configContextmenu($defaults['contextmenu'])); 
-		}
-		if(!in_array('menubar', $optionals)) {
-			$fieldset->add($this->configMenubar($defaults['menubar']));
-		}
-		if(!in_array('removed_menuitems', $optionals)) {
-			$fieldset->add($this->configRemovedMenuitems($defaults['removed_menuitems']));
-		}
-		if(!in_array('styleFormatsCSS', $optionals)) {
-			$fieldset->add($this->configStyleFormatsCSS());
-		}
-		if(!in_array('invalid_styles', $optionals)) {
-			$fieldset->add($this->configInvalidStyles($defaults['invalid_styles']));
+		foreach($optionals as $f) {
+			$f->showIf = "optionals!=$f->name";
+			$fieldset->add($f);
 		}
 
 		$label = $this->_('Default setting overrides JSON');
@@ -984,6 +959,7 @@ class InputfieldTinyMCEConfigs extends InputfieldTinyMCEClass {
 			$this->_('You can use a CSS comment to provide the menu label, i.e. `/\* Red Text \*/`.') . ' ' .
 			$this->_('You can omit the class (and optionally styles) if you just want to make the element available in your Styles dropdown, i.e. `ins {}`.') . ' ' .
 			$this->_('You can specify any styles in UPPERCASE to also force them into inline styles in the markup, i.e. `span.alert { COLOR: red; }`.');
+		$f->set('summary', $this->_('Use CSS classes to create custom styles to add to the “Styles” dropdown.'));
 		$f->val($this->inputfield->styleFormatsCSS);
 		$f->notes = $this->label('example') . "\n" .
 			"`#Inline span.red-text { color: red; } /\* Red Text \*/`\n" .
@@ -1009,6 +985,7 @@ class InputfieldTinyMCEConfigs extends InputfieldTinyMCEClass {
 		$f->description = 
 			$this->_('Space-separated list of inline styles that should be disallowed in markup style attributes.') . ' ' . 
 			$this->label('useDefault');
+		$f->set('summary', $this->_('Specify which inline styles are disallowed from appearing in markup (i.e. line-height, font-size, etc.).'));
 		$f->notes = $this->label('default') . " `$defaultValue`";
 		$value = $this->inputfield->invalid_styles;
 		if($value === $defaultValue) $value = 'default';
@@ -1025,11 +1002,11 @@ class InputfieldTinyMCEConfigs extends InputfieldTinyMCEClass {
 		$f->attr('name', 'menubar');
 		$f->label = $this->_('Menubar dropdowns');
 		$f->icon = 'toggle-down';
+		$f->set('summary', $this->_('Specify which tools should appear in the menubar dropdowns.'));
 		$f->description =
 			$this->_('The top level dropdown items to display in the menubar.') . ' ' . 
 			$this->label('useDefault') . ' ' . 
 			'[' . $this->label('details') . '](https://www.tiny.cloud/docs/tinymce/6/menus-configuration-options/#menubar)';
-			
 		$value = $this->inputfield->menubar;
 		if($value === $defaultValue) $value = 'default';
 		$f->val($value);
@@ -1045,6 +1022,7 @@ class InputfieldTinyMCEConfigs extends InputfieldTinyMCEClass {
 		$f->attr('name', 'removed_menuitems');
 		$f->label = $this->_('Tools to remove from the menubar');
 		$f->icon = 'wrench';
+		$f->set('summary', $this->_('Specify which tools should be removed from the menubar (when used).'));
 		$f->description =
 			$this->_('The menubar is built according to module default settings and installed plugins.') . ' ' .
 			$this->_('If there are tools you do not want showing in the menubar enter their names here.') . ' ' . 
@@ -1064,6 +1042,7 @@ class InputfieldTinyMCEConfigs extends InputfieldTinyMCEClass {
 		$f->attr('name', 'contextmenu');
 		$f->label = $this->_('Context menu tools');
 		$f->icon = 'sticky-note';
+		$f->set('summary', $this->_('Specify which tools should appear in a context menu when you right-click an element.'));
 		$f->description =
 			$this->_('Tools to show in the context menu that appears when right-clicking an element.') . ' ' .
 			$this->_('Only the tools relevant to the element will be shown on right-click.') . ' ' . 
