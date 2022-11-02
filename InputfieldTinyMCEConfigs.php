@@ -959,7 +959,9 @@ class InputfieldTinyMCEConfigs extends InputfieldTinyMCEClass {
 			$this->_('Optionally prefix with `#Headings`, `#Blocks`, `#Inline`, `#Align`, or your own `#Id` to add to a Styles dropdown submenu.') . ' ' .
 			$this->_('You can use a CSS comment to provide the menu label, i.e. `/\* Red Text \*/`.') . ' ' .
 			$this->_('You can omit the class (and optionally styles) if you just want to make the element available in your Styles dropdown, i.e. `ins {}`.') . ' ' .
-			$this->_('You can specify any styles in UPPERCASE to also force them into inline styles in the markup, i.e. `span.alert { COLOR: red; }`.');
+			$this->_('You can specify any styles in UPPERCASE to also force them into inline styles in the markup, i.e. `span.alert { COLOR: red; }`.') . ' ' . 
+			$this->_('To remove all items having same parent (such as all in “Align”) enter `#Align { display:none }`.') . ' ' . 
+			$this->_('Or to remove just “Align > Center” (for example) enter `#Align (Center) { display:none }`.'); 
 		$f->set('summary', $this->_('Use CSS classes to create custom styles to add to the “Styles” dropdown.'));
 		$f->val($this->inputfield->styleFormatsCSS);
 		$f->notes = $this->label('example') . "\n" .
@@ -968,7 +970,8 @@ class InputfieldTinyMCEConfigs extends InputfieldTinyMCEClass {
 			"`img.border { border: 1px solid #ccc; padding: 2px; } /\* Image with border \*/`\n" .
 			"`#Hello ins {} /\* Insert text \*/`\n" .
 			"`#Hello del { text-decoration: line-through; } /\* Delete text \*/`\n" .
-			"`#Hello span.alert { BACKGROUND: red; COLOR: white; } /\* Alert text \*/`";
+			"`#Hello span.alert { BACKGROUND: red; COLOR: white; } /\* Alert text \*/`\n" .
+			"`#Headings (Heading 1) { display: none }`"; 
 		$f->detail =
 			$this->_('Note that this is only for the editor.') . ' ' .
 			$this->_('You will likely want to add similar CSS classes (without the #IDs) to your front-end site stylesheet, unless forcing inline styles.');

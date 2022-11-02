@@ -177,6 +177,7 @@ class InputfieldTinyMCEFormats extends InputfieldTinyMCEClass {
 		//$css = preg_replace('!\}\s+/\*!s', '}/*', $css);
 
 		$lines = explode("\n", $css);
+		$numRemove = 0; 
 		$formats = array(
 			// 'Headings' => array(), 
 			// 'Blocks' => array(),
@@ -209,10 +210,22 @@ class InputfieldTinyMCEFormats extends InputfieldTinyMCEClass {
 			list($styles,) = explode('}', $styles, 2);
 
 			$selector = trim($selector);
+			
+			if(strpos($selector, '(') !== false) {
+				// Alternate title assignment i.e. #Align(Center)
+				list($selector, $title2) = explode('(', $selector, 2); 
+				list($title2, $selector2) = explode(')', $title2, 2); 
+				$selector = trim("$selector $selector2"); 
+				if(!empty($title2)) $title = trim($title2);
+			}
 
 			if(strpos($selector, '#') === 0) {
 				// indicates a submenu parent, i.e. #Blocks
-				list($parent, $selector) = explode(' ', $selector, 2);
+				if(strpos($selector, ' ')) {
+					list($parent, $selector) = explode(' ', $selector, 2);
+				} else {
+					list($parent, $selector) = array($selector, ''); 
+				}
 				$selector = trim($selector);
 				$parent = ucfirst(strtolower(ltrim($parent, '#')));
 			} else {
@@ -244,12 +257,16 @@ class InputfieldTinyMCEFormats extends InputfieldTinyMCEClass {
 				}
 				$stylesStr .= "$k:$v;";
 			}
-
-			if($class) {
-				$_class = str_replace(' ', '.', $class);
-				$contentStyle .= "$element.$_class { $stylesStr } ";
+			
+			$contentStyleSelector = ($class ? "$element." . str_replace(' ', '.', $class) : $element);
+			
+			if(stripos($stylesStr, 'display:none') !== false) {
+				$numRemove++;
+				if(empty($title)) $title = '*'; // indicates remove all in parent
+				$remove = true;
 			} else {
-				$contentStyle .= "$element { $stylesStr } ";
+				$contentStyle .= "$contentStyleSelector { $stylesStr } ";
+				$remove = false;
 			}
 
 			if(empty($element)) $element = '*';
@@ -257,8 +274,10 @@ class InputfieldTinyMCEFormats extends InputfieldTinyMCEClass {
 			$format = array(
 				'title' => ($title ? $title : $selector)
 			);
-
-			if(stripos(self::$inlines, "/$element/") !== false) {
+			
+			if($remove) {
+				$format['remove'] = true;
+			} else if(stripos(self::$inlines, "/$element/") !== false) {
 				$format['inline'] = $element;
 			} else if(strpos(self::$blocks, "/$element/") !== false) {
 				$format['block'] = $element;
@@ -308,7 +327,66 @@ class InputfieldTinyMCEFormats extends InputfieldTinyMCEClass {
 		} else {
 			$settings['content_style'] = $contentStyle;
 		}
-
+		
+		if($numRemove) {
+			$settings['style_formats'] = $this->applyRemoveStyleFormats($settings['style_formats']); 
+		}
+	
+		// reindex to ensure keys remain numeric and in order so json_encode doesn’t use string keys
+		$settings['style_formats'] = array_values($settings['style_formats']); 
 	}
 
+	/**
+	 * Remove style formats that have a 'remove=true' property
+	 * 
+	 * @param array $styleFormats
+	 * @return array
+	 * 
+	 */
+	protected function applyRemoveStyleFormats(array $styleFormats) {
+		
+		foreach($styleFormats as $key => $styleFormat) {
+			
+			if(!empty($styleFormat['remove'])) {
+				// remove all in format or remove root level format
+				unset($styleFormats[$key]); 
+				continue;
+			} else if(empty($styleFormat['items'])) {
+				// root level format with no items
+				continue;
+			}
+			
+			$removeTitles = array();
+			
+			foreach($styleFormat['items'] as $item) {
+				if(empty($item['remove'])) continue;
+				$title = strtolower($item['title']);
+				if($title === '*') {
+					unset($styleFormats[$key]); // remove all in parent
+				} else {
+					$removeTitles[$title] = $title; // remove by title
+				}
+			}
+		
+			if(empty($styleFormats[$key]) || empty($removeTitles)) continue;
+			
+			foreach($styleFormat['items'] as $itemKey => $item) {
+				$title = strtolower($item['title']); 
+				if(!isset($removeTitles[$title])) continue;
+				unset($styleFormats[$key]['items'][$itemKey]); // remove item matching title
+				if(empty($styleFormats[$key]['items'])) {
+					unset($styleFormats[$key]); // remove parent when it has no items
+					break;
+				}
+			}
+		
+			// reindex to prevent json_encode from converting keys to strings
+			if(isset($styleFormats[$key]['items'])) {
+				$styleFormats[$key]['items'] = array_values($styleFormats[$key]['items']);
+			}
+		}
+
+		return $styleFormats;
+	}
+	
 }
