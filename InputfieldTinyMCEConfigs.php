@@ -876,7 +876,7 @@ class InputfieldTinyMCEConfigs extends InputfieldTinyMCEClass {
 		$f->collapsed = Inputfield::collapsedBlank;
 		$value = $this->inputfield->defaultsFile;
 		$f->val($value);
-		if($value && !$isPost) $this->tools()->jsonDecodeFile($value, 'defaultsFile'); // test decode
+		if($value && !$isPost) $this->tools()->jsonDecodeFile($config->paths->root . $value, 'defaultsFile'); // test decode
 		$f->themeOffset = 1;
 		$fieldset->add($f);
 

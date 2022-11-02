@@ -146,7 +146,7 @@ class InputfieldTinyMCESettings extends InputfieldTinyMCEClass {
 
 		$file = $this->inputfield->defaultsFile;
 		if($file) {
-			$file = $url . ltrim($file, '/');
+			$file = $config->paths->root . ltrim($file, '/');
 			$data = $tools->jsonDecodeFile($file, 'default settings file for module');
 			if(is_array($data) && !empty($data)) $defaults = array_merge($defaults, $data);
 		}
