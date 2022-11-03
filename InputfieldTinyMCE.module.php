@@ -46,6 +46,7 @@
  * Runtime settings
  * ----------------
  * @property-read bool $readonly Automatically set during renderValue mode
+ * @property-read bool $initialized
  * @property array $external_plugins URLs of external plugins, this is also a TinyMCE setting
  * @property-read InputfieldTinyMCESettings $settings
  * @property-read InputfieldTinyMCEConfigs $configs
@@ -111,18 +112,21 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 	protected $helpers = array();
 
 	/**
-	 * Setting names for field, module and tinymc3
+	 * Setting names for field, module, tinymce and more
 	 * 
-	 * Field setting names populated by init(). 
-	 * Module setting names populated by __construct(). 
-	 * Options are settings that can be configured with module or field. 
+	 * field: setting names populated by init(). 
+	 * module: setting names populated by __construct(). 
+	 * defult: setting names that had the value 'default' set prior to init(). 
+	 * tinymce: setting names are those native to TinyMCE.
+	 * optionals: settings that can be configured with module OR field. 
 	 * 
 	 * @var array 
 	 * 
 	 */
 	protected $settingNames = array(
 		'field' => array(), 
-		'module' => array(), 
+		'module' => array(),
+		'default' => array(),
 		'tinymce' => array(
 			'skin',
 			'height',
@@ -224,10 +228,19 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 	 */
 	public function init() {
 		parent::init();
+		$this->initialized = true;
 	
 		$this->attr('rows', 15);
 		$optionals = $this->optionals;
-	
+
+		// set module settings that had value 'default' which requires values from getDefaults()
+		// that we do not want called until the init() state reached (for defaultsJSON)
+		foreach($this->settingNames['default'] as $key) {
+			$this->set($key, 'default');
+		}
+		
+		$this->settingNames['default'] = array(); // no longer needed
+
 		// field settings
 		$data = array(
 			'contentType' => FieldtypeTextarea::contentTypeHTML,
@@ -277,7 +290,6 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 		}
 		
 		$this->data($settings);
-		$this->initialized = true;
 	}
 
 	/**
@@ -360,6 +372,7 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 			case 'settings':
 			case 'configs':
 			case 'formats': return $this->helper($key);
+			case 'initialized': return $this->initialized;
 			case 'configName': return $this->configName;
 		}
 		return parent::get($key);
@@ -375,13 +388,22 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 	 */
 	public function set($key, $value) {
 	
-		if($this->initialized && isset($this->settingNames['optionals'][$key])) {
-			// do not set optionals property not allowed for field configuration
-			// if not specifically selected in module settings
-			if(!in_array($key, $this->optionals)) return $this;
+		if($this->initialized) {
+			if(isset($this->settingNames['optionals'][$key])) {
+				// do not set optionals property not allowed for field configuration
+				// if not specifically selected in module settings
+				if(!in_array($key, $this->optionals)) return $this;
+			}
+		} else {
+			// when not yet initialized, avoid processing any settings with value 'default'
+			// since this will prematurely load the getDefaults() before we are ready
+			if($value === 'default') {
+				$this->settingNames['default'][$key] = $key;
+				return $this;
+			}
 		}
 		
-		if($key === 'toolbar') {
+		if($key === 'toolbar' && is_string($value)) {
 			if(strpos($value, ',') !== false) {
 				// $value = $this->configs()->ckeToMceToolbar($value); // convert CKE toolbar
 				return $this; // ignore CKE toolbar (which has commas in it)
