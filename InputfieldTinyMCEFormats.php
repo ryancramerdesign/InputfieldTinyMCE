@@ -29,14 +29,16 @@ class InputfieldTinyMCEFormats extends InputfieldTinyMCEClass {
 	 * HTML5 block elements that should use "block" designation in style_formats
 	 *
 	 * These elements can be inserted from Styles dropdown, if defined in style_formats.
+	 * Block elements not defined here must exist before the style can be applied. 
 	 *
 	 * @var string
 	 *
 	 */
 	static protected $blocks =
-		'/address/article/aside/blockquote/dd/details/div/dl/dt/' .
-		'/footer/h1/h2/h3/h4/h5/h6/header/hgroup/hr/li/main/nav/ol/p/pre/' .
-		'/section/table/ul/';
+		'/h1/h2/h3/h4/h5/h6/p/';
+		// '/address/article/aside/blockquote/dd/details/div/dl/dt/' .
+		// '/footer/h1/h2/h3/h4/h5/h6/header/hgroup/hr/li/main/nav/ol/p/pre/' .
+		// '/section/table/'; 
 
 	/**
 	 * HTML5 block or inline elements that should use "selector" designation in style_formats
