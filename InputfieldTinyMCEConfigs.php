@@ -150,8 +150,7 @@ class InputfieldTinyMCEConfigs extends InputfieldTinyMCEClass {
 			'2) List that shows which plugins that have been installed, with links to the doc pages when available.', 
 		'image' => 
 			'Enables the user to insert an image into TinyMCE’s editable area. ' . 
-			'Also adds a toolbar button and an Insert/edit image menu item under the Insert menu. ' . 
-			'*In ProcessWire page editor, you should use the “pwimage” plugin instead.*',
+			'Also adds a toolbar button and an Insert/edit image menu item under the Insert menu.',
 		/*
 		'importcss' => 
 			'Adds the ability to automatically import CSS classes from the CSS file specified in the content_css configuration setting.',
@@ -658,6 +657,23 @@ class InputfieldTinyMCEConfigs extends InputfieldTinyMCEClass {
 			$fieldset->add($this->configInvalidStyles($defaults['invalid_styles']));
 		}
 
+		// identify which settings are being modified by "add_" or "replace_" module settings
+		$addDefaults = $this->settings()->getAddDefaults();
+		if(count($addDefaults)) {
+			foreach($fieldset->children() as $f) {
+				$key = $f->name; 
+				if($key === 'headlines') $key = 'block_formats';
+				if($key === 'inlineMode') $key = 'inline';
+				if(isset($addDefaults['replace_' . $key])) {
+					$warning = wireIconMarkup('warning') . ' ' . $this->_('Warning: this setting is being overridden by a module JSON setting.') ;
+					$f->prependMarkup .= "<p class='ui-state-error-text'>$warning</p>";
+				}
+				if(isset($addDefaults['add_' . $key]) || isset($addDefaults['append_' . $key])) {
+					$f->detail = trim("$f->detail\n" . $this->_('NOTE: this setting is currently being appended to by a module JSON setting.')); 
+				}
+			}
+		}
+
 		$f = $fieldset->InputfieldCheckboxes;
 		$f->attr('name', 'toggles');
 		$f->label = $this->_('Markup toggles');
@@ -851,6 +867,16 @@ class InputfieldTinyMCEConfigs extends InputfieldTinyMCEClass {
 			$fieldset->add($f);
 		}
 
+		$exampleUrl = $config->urls($this->inputfield) . 'defaults.json';
+		$defaultsDetail =
+			$this->label('example') . ' `{ "style_formats_autohide": true }`' . "\n" . 
+			$this->_('If you want to force a setting to override a field setting, prefix it with “replace_”, i.e. `{ "replace_toolbar": "styles bold italic" }`.') . "\n" . 
+			$this->_('If you want to append to an existing field setting, prefix the setting name with “add_”, i.e. `{ "add_toolbar": "undo redo" }`') . "\n" . 
+			sprintf(
+				$this->_('See the [TinyMCE docs](%s) for detail on all settings, keeping in mind that you can also use the “replace_” or “add_” prefixes.'), 
+				'https://www.tiny.cloud/docs/tinymce/6/'
+			) . "\n"  .
+			sprintf($this->_('See the default JSON file here: [defaults.json](%s).'), $exampleUrl);
 		$label = $this->_('Default setting overrides JSON');
 		$f = $inputfields->InputfieldTextarea;
 		$f->attr('name', 'defaultsJSON');
@@ -858,7 +884,7 @@ class InputfieldTinyMCEConfigs extends InputfieldTinyMCEClass {
 		$f->icon = 'file-code-o';
 		$f->description = $this->_('Enter JSON of any default settings you’d like to override from the module defaults.');
 		$f->collapsed = Inputfield::collapsedBlank;
-		$f->notes = 'Example: `{ "block_formats": "Paragraph=p; Header 2=h2; Header 3=h3" }`';
+		$f->detail = $defaultsDetail;
 		$value = $this->inputfield->defaultsJSON;
 		$f->val($value);
 		if($value && !$isPost) $this->tools()->jsonDecode($value, 'defaultsJSON'); // test decode
@@ -871,8 +897,7 @@ class InputfieldTinyMCEConfigs extends InputfieldTinyMCEClass {
 		$f->icon = 'file-code-o';
 		$f->description = $this->_('Enter the path to a custom defaults JSON file relative to the ProcessWire installation root directory.');
 		$f->attr('placeholder', '/dir/to/defaults.json');
-		$exampleUrl = $config->urls($this->inputfield) . 'defaults.json';
-		$f->notes = sprintf($this->_('See the default JSON file here: [defaults.json](%s).'), $exampleUrl);
+		$f->detail = $defaultsDetail;
 		$f->collapsed = Inputfield::collapsedBlank;
 		$value = $this->inputfield->defaultsFile;
 		$f->val($value);

@@ -23,6 +23,7 @@ class InputfieldTinyMCESettings extends InputfieldTinyMCEClass {
 		'alignClasses' => array(),
 		'renderReadyInline' => array(), 
 		'langSettings' => array(), 
+		'addDefaults' => array(), 
 	);
 
 	/**
@@ -160,11 +161,28 @@ class InputfieldTinyMCESettings extends InputfieldTinyMCEClass {
 		$languageSettings = $this->getLanguageSettings();
 		if(!empty($languageSettings)) $defaults = array_merge($defaults, $languageSettings);
 		
+		foreach($defaults as $k => $value) {
+			if(strpos($k, 'add_') === 0 || strpos($k, 'append_') === 0 || strpos($k, 'replace_') === 0) {
+				self::$caches['addDefaults'][$k] = $value;
+				unset($defaults[$k]); 
+			}
+		}
+		
 		self::$caches['defaults'] = $defaults;
 		
 		if($key) return isset($defaults[$key]) ? $defaults[$key] : null;
 		
 		return $defaults;
+	}
+
+	/**
+	 * Get 'add_' or 'replace_' default settings
+	 * 
+	 * @return array|mixed
+	 * 
+	 */
+	public function getAddDefaults() {
+		return self::$caches['addDefaults'];
 	}
 
 	/**
@@ -363,7 +381,7 @@ class InputfieldTinyMCESettings extends InputfieldTinyMCEClass {
 			$settings['height'] = "$settings[height]px";
 		}
 	
-		if(isset($settings['toolbar'])) {
+		if(isset($settings['toolbar']) && is_string($settings['toolbar'])) {
 			$splitTools = array('styles', 'blocks'); 
 			foreach($splitTools as $name) {
 				$settings['toolbar'] = str_replace("$name ", "$name | ", $settings['toolbar']); 
@@ -479,7 +497,18 @@ class InputfieldTinyMCESettings extends InputfieldTinyMCEClass {
 	
 		// find other add_* properties, i.e. 'add_formats', 'add_invalid_styles', 'add_plugins'
 		// these append rather than replace, i.e. 'add_formats' appends to 'formats'
+		// also find any replace_* properties and replace setting values rather than append
 		foreach($addSettings as $key => $addValue) {
+			if(strpos($key, 'replace_') === 0) {
+				list(,$k) = explode('replace_', $key, 2); 
+				if(!isset($addSettings[$k]) && $addValue !== null) $addSettings[$k] = $addValue;
+				unset($addSettings[$key]); 
+				continue;
+			}
+			if(strpos($key, 'append_') === 0) {
+				unset($addSettings[$key]); 
+				$key = str_replace('append_', 'add_', $key);
+			}
 			if(strpos($key, 'add_') !== 0) continue;
 			list(,$name) = explode('add_', $key, 2);
 			unset($addSettings[$key]); 
@@ -530,7 +559,11 @@ class InputfieldTinyMCESettings extends InputfieldTinyMCEClass {
 		$defaults = $this->getDefaults();
 
 		// settings defined in custom JSON (file or input)
-		$addSettings = array_merge($this->getFromSettingsFile(), $this->getFromSettingsJSON());
+		$addSettings = array_merge(
+			$this->getAddDefaults(),
+			$this->getFromSettingsFile(), 
+			$this->getFromSettingsJSON()
+		);
 
 		if($configName) {
 			$js = $config->js($inputfield->className());
