@@ -390,5 +390,107 @@ class InputfieldTinyMCEFormats extends InputfieldTinyMCEClass {
 
 		return $styleFormats;
 	}
+
+	/**
+	 * Get TinyMCE "invalid_styles" setting and prepare as array value
+	 * 
+	 * Parses value in space-separated string format (commas optional):
+	 * ~~~~~
+	 * line-height, color, a=background|background-color, td=height
+	 * ~~~~~
+	 * In the above, line-height and color are disabled for all elements,
+	 * background and background color are disabled for "a" elements, 
+	 * and height is disabled for "td" elements. 
+	 * 
+	 * @param string $value
+	 * @param array|string $defaultValue
+	 * @param bool $merge Merge with given defaultValue?
+	 * @return array|string
+	 * 
+	 */
+	public function getInvalidStyles($value, $defaultValue, $merge = false) {
+		
+		if(!is_array($defaultValue)) $defaultValue = array('*' => $defaultValue);
+		if($value === null) $value = $this->inputfield->invalid_styles;
+		if($value === 'default') return $defaultValue;
+		if(strpos($value, ',') !== false) $value = str_replace(',', ' ', $value);
+		
+		if($merge) {
+			if(is_string($defaultValue)) {
+				$defaultValue = $this->invalidStylesStrToArray($defaultValue);
+			}
+			$invalidStyles = $this->invalidStylesStrToArray($value, $defaultValue);
+		} else {
+			$invalidStyles = $this->invalidStylesStrToArray($value);
+		}
+		
+		return $invalidStyles;
+	}
+
+	/**
+	 * Convert invalid_styles string to array
+	 * 
+	 * @param string $value i.e. "line-height color a=background|background-color td=height"
+	 * @param array $a Optionally merge with these styles
+	 * @return array
+	 * 
+	 */
+	public function invalidStylesStrToArray($value, array $a = array()) {
+		// $value i.e. "line-height color a=background|background-color td=height"
+		if(strpos($value, ',') !== false) $value = str_replace(',', ' ', $value);
+		if(strpos($value, "\n") !== false) $value = str_replace("\n", ' ', $value);
+		foreach(explode(' ', strtolower($value)) as $style) {
+			if(empty($style)) continue;
+			if(strpos($style, '=')) {
+				list($element, $style) = explode('=', $style, 2);
+				$styleNames = explode('|', $style);
+			} else {
+				$element = '*';
+				$styleNames[] = $style;
+			}
+			if(strpos($element, '|')) {
+				$elements = explode('|', $element);
+			} else {
+				$elements = array($element);
+			}
+			foreach($elements as $element) {
+				if(isset($invalidStyles[$element])) {
+					$a[$element] = array_unique(array_merge($a[$element], $styleNames));
+				} else {
+					$a[$element] = $styleNames;
+				}
+			}
+		}
+		foreach($a as $element => $styles) {
+			$a[$element] = implode(' ', $styles); // convert to string
+		}
+		return $a;
+	}
+
+	/**
+	 * Convert invalid_styles array to string
+	 * 
+	 * @param array $a
+	 * @return string
+	 * 
+	 */
+	public function invalidStylesArrayToStr(array $a) {
+		$str = '';
+		$elementsByStyle = array();
+		foreach($a as $element => $styles) {
+			if($element === '*') {
+				$str .= " $styles";
+			} else if(strpos($styles, ' ') === false) {
+				if(!isset($elementsByStyle[$styles])) $elementsByStyle[$styles] = array();
+				$elementsByStyle[$styles][] = $element;
+			} else {
+				$str .= " $element=" . str_replace(' ', '|', $styles);
+			}
+		}
+		foreach($elementsByStyle as $style => $elements) {
+			$str .= " " . implode('|', $elements) . "=$style";
+		}
+		return trim($str);
+	}
 	
 }

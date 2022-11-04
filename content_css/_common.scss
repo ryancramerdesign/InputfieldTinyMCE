@@ -153,14 +153,20 @@ $code-font-family: Consolas,Monaco,'Andale Mono','Ubuntu Mono',monospace;
 
 	.align_right, .align-right, .right {
 		text-align: right;
+		float: none;
 	}
 
 	.align_left, .align-left, .left {
 		text-align: left;
+		float: none;
 	}
 
 	.align_center, .align-center, .center {
 		text-align: center;
+	}
+	
+	.align_full, .align-full, .full {
+		text-align: justify;
 	}
 
 	img, figure, table {
@@ -185,6 +191,11 @@ $code-font-family: Consolas,Monaco,'Andale Mono','Ubuntu Mono',monospace;
 			display: block;
 			margin-left: auto;
 			margin-right: auto;
+		}
+		
+		&.align_full, &.align-full, &.full {
+			text-align: initial;
+			width: 100%;
 		}
 	}
 

@@ -24,6 +24,7 @@ class InputfieldTinyMCESettings extends InputfieldTinyMCEClass {
 		'renderReadyInline' => array(), 
 		'langSettings' => array(), 
 		'addDefaults' => array(), 
+		'originalDefaults' => array(), 
 	);
 
 	/**
@@ -42,11 +43,9 @@ class InputfieldTinyMCESettings extends InputfieldTinyMCEClass {
 		if($defaults === null) $defaults = $this->getDefaults();
 
 		$settings = array();
-		$features = $inputfield->get('features');
+		$features = $inputfield->features;
 		$formats = $this->formats();
 		
-		if(!is_array($features)) $features = $this->inputfield->features;
-
 		foreach($defaults as $name => $defaultValue) {
 			if($name === 'menubar') {
 				if(in_array($name, $features)) {
@@ -70,11 +69,13 @@ class InputfieldTinyMCESettings extends InputfieldTinyMCEClass {
 					if(empty($value)) continue;
 				}
 			} else if($name === 'directionality') {
-				$value = $this->inputfield->getDirectionality();
+				$value = $inputfield->getDirectionality();
 			} else if($name === 'style_formats') {
 				$value = $formats->getStyleFormats($defaults);
 			} else if($name === 'block_formats') {
 				$value = $formats->getBlockFormats();
+			} else if($name === 'invalid_styles') {
+				$value = $formats->getInvalidStyles($inputfield->invalid_styles, $defaultValue);
 			} else if($name === 'formats') {
 				// overlaps with native formats property so use data rather than get
 				$value = $inputfield->data('formats'); 
@@ -84,7 +85,7 @@ class InputfieldTinyMCESettings extends InputfieldTinyMCEClass {
 			}
 			if($name === 'removed_menuitems' && strpos($value, 'print') === false) {
 				// the print option is not useful in inline mode
-				if($this->inputfield->inlineMode) $value = trim("$value print");
+				if($inputfield->inlineMode) $value = trim("$value print");
 			}
 			if($value !== null && $value != $defaultValue) {
 				$settings[$name] = $value;
@@ -130,6 +131,9 @@ class InputfieldTinyMCESettings extends InputfieldTinyMCEClass {
 		// root relative, i.e. '/site/modules/InputfieldTinyMCE/'
 		$url = substr($url, strlen($root)-1);
 		$alignClasses = $this->getAlignClasses();
+		$mceSettingNames = $this->inputfield->getSettingNames('tinymce');
+		$optionalSettingNames = $this->inputfield->getSettingNames('optionals');
+		$optionals = $this->inputfield->optionals;
 
 		// selector of elements that can be used with align commands
 
@@ -145,18 +149,35 @@ class InputfieldTinyMCESettings extends InputfieldTinyMCEClass {
 		$json = str_replace(array_keys($replacements), array_values($replacements), $json);
 		$defaults = $tools->jsonDecode($json, 'defaults.json');
 
+		// defaults JSON file
 		$file = $this->inputfield->defaultsFile;
 		if($file) {
 			$file = $config->paths->root . ltrim($file, '/');
 			$data = $tools->jsonDecodeFile($file, 'default settings file for module');
 			if(is_array($data) && !empty($data)) $defaults = array_merge($defaults, $data);
 		}
-		
+	
+		// defaults JSON text
 		$json = $this->inputfield->defaultsJSON;
 		if($json) {
 			$data = $tools->jsonDecode($json, 'defaults JSON module setting'); 
 			if(is_array($data) && !empty($data)) $defaults = array_merge($defaults, $data);
 		}
+
+		// optionals
+		foreach($optionalSettingNames as $name) {
+			if(in_array($name, $optionals)) continue; // configured with field (not module)
+			if(!in_array($name, $mceSettingNames)) continue; // not a direct TinyMCE setting
+			$value = $this->inputfield->get($name);
+			if($value === 'default' || $value === null) continue;
+			if($name === 'invalid_styles' && is_string($value)) {
+				$value = $this->formats()->invalidStylesStrToArray($value);
+			}
+			if(isset($defaults[$name]) && $defaults[$name] !== $value) {
+				self::$caches['originalDefaults'][$name] = $defaults[$name];
+			}
+			$defaults[$name] = $value;
+		}	
 		
 		$languageSettings = $this->getLanguageSettings();
 		if(!empty($languageSettings)) $defaults = array_merge($defaults, $languageSettings);
@@ -173,6 +194,25 @@ class InputfieldTinyMCESettings extends InputfieldTinyMCEClass {
 		if($key) return isset($defaults[$key]) ? $defaults[$key] : null;
 		
 		return $defaults;
+	}
+
+	/**
+	 * Get original defaults from source JSON, prior to being overriden by module default settings
+	 * 
+	 * @param string $key
+	 * @return array|mixed|null
+	 * 
+	 */
+	public function getOriginalDefaults($key = '') {
+		$defaults = $this->getDefaults();
+		if($key) {
+			if(isset(self::$caches['originalDefaults'][$key])) {
+				return self::$caches['originalDefaults'][$key];
+			} else {
+				return isset($defaults[$key]) ? $defaults[$key] : null;
+			}
+		}
+		return array_merge($defaults, self::$caches['originalDefaults']); 
 	}
 
 	/**

@@ -832,7 +832,7 @@ class InputfieldTinyMCEConfigs extends InputfieldTinyMCEClass {
 		$f->themeOffset = 1;
 		$fieldset->add($f);
 		
-		$defaults = $this->settings()->getDefaults();
+		$defaults = $this->settings()->getOriginalDefaults();
 		$optionals = array(
 			$this->configHeadlines(),
 			$this->configContextmenu($defaults['contextmenu']),
@@ -938,6 +938,15 @@ class InputfieldTinyMCEConfigs extends InputfieldTinyMCEClass {
 				$fieldset->add($f);
 			}
 		}
+		
+		$f = $inputfields->InputfieldToggle;
+		$f->attr('name', 'debugMode');
+		$f->label = $this->_('Debug mode?');
+		$f->description = $this->_('When enabled InputfieldTinyMCE.js will use verbose console.log() messages for debugging or development.'); 
+		$f->val((bool) $this->inputfield->debugMode);
+		$f->collapsed = $f->val() ? false : true;
+		$f->icon = 'bug';
+		$inputfields->add($f);
 	}
 
 	/**
@@ -988,7 +997,8 @@ class InputfieldTinyMCEConfigs extends InputfieldTinyMCEClass {
 			$this->_('To remove all items having same parent (such as all in “Align”) enter `#Align { display:none }`.') . ' ' . 
 			$this->_('Or to remove just “Align > Center” (for example) enter `#Align (Center) { display:none }`.'); 
 		$f->set('summary', $this->_('Use CSS classes to create custom styles to add to the “Styles” dropdown.'));
-		$f->val($this->inputfield->styleFormatsCSS);
+		$value = $this->inputfield->styleFormatsCSS;
+		$f->val($value);
 		$f->notes = $this->label('example') . "\n" .
 			"`#Inline span.red-text { color: red; } /\* Red Text \*/`\n" .
 			"`#Blocks p.outline { padding: 20px; border: 1px dotted #ccc; } /\* Outline paragraph \*/`\n" .
@@ -1003,25 +1013,43 @@ class InputfieldTinyMCEConfigs extends InputfieldTinyMCEClass {
 		$f->themeOffset = 1;
 		$f->icon = 'css3';
 		$f->collapsed = Inputfield::collapsedBlank;
+		$rows = substr_count($value, "\n") + 2;
+		if($rows > $f->attr('rows')) $f->attr('rows', $rows);
 		return $f;
 	}
 	
 	protected function configInvalidStyles($defaultValue) {
-		/** @var InputfieldText $f */
-		$f = $this->wire()->modules->get('InputfieldText'); 
+		
+		if(is_array($defaultValue)) {
+			$defaultValue = $this->formats()->invalidStylesArrayToStr($defaultValue);
+		}
+		
+		/** @var InputfieldTextarea $f */
+		$f = $this->wire()->modules->get('InputfieldTextarea'); 
 		$f->attr('name', 'invalid_styles');
+		$f->attr('rows', 3);
 		$f->label = $this->_('Invalid styles');
+		$format1 = "`tag=style1|style2|style3`";
+		$format2 = "`tag1|tag2|tag3=style`";
 		$f->description = 
-			$this->_('Space-separated list of inline styles that should be disallowed in markup style attributes.') . ' ' . 
+			$this->_('Space, newline or comma separated list of inline styles that should be disallowed in markup style attributes.') . ' ' . 
+			$this->_('Each style is disabled for all elements.') . ' ' . 
+			sprintf($this->_('To disable styles for specific elements/tags use the format %s or %s.'), $format1, $format2) . ' ' . 
 			$this->label('useDefault');
 		$f->set('summary', $this->_('Specify which inline styles are disallowed from appearing in markup (i.e. line-height, font-size, etc.).'));
-		$f->notes = $this->label('default') . " `$defaultValue`";
+		$f->notes = 
+			$this->label('default') . " `$defaultValue`" . "\n" . 
+			$this->label('example') . " `float, font-family, a=color|background-color, table|tr|td=height`";
+		$f->detail = $this->_('Use of are commas or newlines is optional.');
+			
 		$value = $this->inputfield->invalid_styles;
 		if($value === $defaultValue) $value = 'default';
 		$f->val($value);
 		if(empty($value) || $value === 'default') $f->collapsed = Inputfield::collapsedYes;
 		$f->themeOffset = 1;
 		$f->icon = 'eye-slash';
+		$rows = substr_count($value, "\n") + 2; 
+		if($rows > $f->attr('rows')) $f->attr('rows', $rows);
 		return $f;
 	}
 

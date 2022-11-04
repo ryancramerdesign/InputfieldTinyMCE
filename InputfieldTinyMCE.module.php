@@ -41,6 +41,7 @@
  * @property string $defaultsFile Location of optional defaults.json file that merges with defaults.json (URL relative to PW root URL)
  * @property string $defaultsJSON JSON that merges with the defaults.json for all instances
  * @property array $optionals Names of optional settings that can be configured per-field
+ * @property bool|int $debugMode Makes InputfieldTinyMCE.js use verbose console.log() messages
  * There are also `$lang_name=packname` settings in multi-lang sites where "name" is lang name and "packname" is lang pack name
  * 
  * Runtime settings
@@ -67,7 +68,7 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 		return array(
 			'title' => 'TinyMCE',
 			'summary' => 'TinyMCE rich text editor version ' . self::mceVersion . '.',
-			'version' => 602,
+			'version' => 603,
 			'icon' => 'keyboard-o',
 			'requires' => 'ProcessWire>=3.0.200, MarkupHTMLPurifier',
 		);
@@ -203,6 +204,7 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 			'extPluginOptions' => '',
 			'styleFormatsCSS' => '', // optionals
 			'optionals' => array(),
+			'debugMode' => false, 
 		);
 	
 		foreach(array_keys($data) as $key) {
@@ -490,6 +492,7 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 				// settings specific to pwlink plugin
 				'classOptions' => $this->tools->linkConfig('classOptions')
 			),
+			'debug' => (bool) $this->debugMode,
 		);
 	
 		$config->js($class, $js);
@@ -684,15 +687,17 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 	/**
 	 * Get all configurable setting names
 	 * 
-	 * @param array $types Types to get, one or more of: 'tinymce', 'field', 'module'
+	 * @param array|string $types Types to get, one or more of: 'tinymce', 'field', 'module', 'optionals'
 	 * @return string[]
 	 * @throws WireException if given unknown setting type
 	 * 
 	 */
-	public function getSettingNames(array $types) {
+	public function getSettingNames($types) {
+		if(!is_array($types)) $types = explode(' ', $types);
 		$a = array();
 		if(empty($types)) $types = array_keys($this->settingNames);
 		foreach($types as $type) {
+			if(empty($type)) continue;
 			if(!isset($this->settingNames[$type])) {
 				throw new WireException("Unknown setting type: $type"); 
 			}

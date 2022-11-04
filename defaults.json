@@ -10,19 +10,19 @@
   },
   "formats": {
     "alignleft": {
-      "selector": "p,h1,h2,h3,h4,h5,h6,td,th,div,ul,ol,li,table,img,figure,audio,video",
+      "selector": "p,h1,h2,h3,h4,h5,h6,td,th,div,table,img,figure,audio,video",
       "classes": "{alignleft}"
     },
     "aligncenter": {
-      "selector": "p,h1,h2,h3,h4,h5,h6,td,th,div,ul,ol,li,table,img,figure,audio,video",
+      "selector": "p,h1,h2,h3,h4,h5,h6,td,th,div,table,img,figure,audio,video",
       "classes": "{aligncenter}"
     },
     "alignright": {
-      "selector": "p,h1,h2,h3,h4,h5,h6,td,th,div,ul,ol,li,table,img,figure,audio,video",
+      "selector": "p,h1,h2,h3,h4,h5,h6,td,th,div,table,img,figure,audio,video",
       "classes": "{alignright}"
     },
     "alignfull": {
-      "selector": "p,h1,h2,h3,h4,h5,h6,td,th,div,ul,ol,li,table,img,figure,audio,video",
+      "selector": "p,h1,h2,h3,h4,h5,h6,td,th,div,img,figure,audio,video",
       "classes": "{alignfull}"
     },
     "bold": {
@@ -41,7 +41,12 @@
   },
   "height": 500,
   "inline": false,
-  "invalid_styles": "font-size font-family line-height",
+  "invalid_styles": {
+    "*": "font-size font-family line-height",
+    "table": "height",
+    "tr": "height",
+    "td": "height"
+  },
   "menu": {
     "edit": {
       "title": "Edit",
@@ -176,10 +181,18 @@
         {
           "title": "Right",
           "format": "alignright"
+        },
+        {
+          "title": "Justify",
+          "format": "alignfull"
         }
       ]
     }
   ],
+  "table_appearance_options": false,
+  "table_advtab": false,
+  "table_cell_advtab": false,
+  "table_row_advtab": false,
   "toolbar": "styles bold italic pwlink pwimage blockquote hr bullist numlist table anchor code",
   "toolbar_sticky": true
 }

@@ -231,12 +231,47 @@ var InputfieldTinyMCE = {
 			// editor.dom.setAttrib(img, 'height', data.height);
 			t.log('Resized image to width=' + data.width, data.src);
 		});
-	}, 
+	},
+	
+	/**
+	 * Called when an element has an align class applied to it
+	 * 
+	 * This function ensures only 1 align class is applied at a time.
+	 * 
+ 	 * @param editor
+	 * 
+	 */	
+	elementAligned: function(editor) {
+		var selection = editor.selection;
+		var node = selection.getNode();
+		var className = node.className;
+		
+		// if only one align class then return now		
+		if(className.indexOf('align') === className.lastIndexOf('align')) return;
+		
+		var alignNames = [];
+		var classNames = className.split(' ');
+		
+		for(var n = 0; n < classNames.length; n++) {
+			if(classNames[n].indexOf('align') === 0) {
+				alignNames.push(classNames[n]);
+			}
+		}
+	
+		// pop off last align class, which we will keep
+		alignNames.pop(); 
+		
+		for(var n = 0; n < alignNames.length; n++) {
+			className = className.replace(alignNames[n], '');
+		}
+		
+		node.className = className.trim();
+	},
 	
 	/**
 	 * Init callback function
-	 * 
- 	 * @param editor
+	 *
+	 * @param editor
 	 * @param features
 	 * 
 	 */	
@@ -267,25 +302,12 @@ var InputfieldTinyMCE = {
 			t.callbacks.onReady[n](editor);
 		}
 		
-		/*
-		if($editor.hasClass('InputfieldTinyMCEInlineFocus')) {
-			console.log("mceFocus");
-			setTimeout(function() {
-				editor.show();
-				editor.execCommand('mceFocus');
-			}, 1000); 
-		}
-		 */
-
 		editor.on('ExecCommand', function(e, f) {
 			if(e.command === 'mceFocus') return;
 			t.log('command: ' + e.command, e);
 			if(e.command === 'mceToggleFormat' && e.value && e.value.indexOf('align') === 0) {
 				var editor = this;
-				var selection = editor.selection;
-				var node = selection.getNode();
-				t.log('e.value', e.value);
-				t.log('node', node); 
+				t.elementAligned(editor);
 			}
 		});
 		
@@ -304,8 +326,6 @@ var InputfieldTinyMCE = {
 			t.log('ResizeEditor');
 		}); 
 		*/
-		
-		// editor.on('Change', function(e) { $input.trigger('change'); });
 	},
 	
 	/**
@@ -504,6 +524,7 @@ var InputfieldTinyMCE = {
 	 * 
  	 */	
 	documentReady: function() {
+		this.debug = ProcessWire.config.InputfieldTinyMCE.debug;
 		this.isDocumentReady = true;
 		this.log('documentReady', this.editorIds);
 		while(this.editorIds.length > 0) {
