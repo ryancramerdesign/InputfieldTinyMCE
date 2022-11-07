@@ -427,6 +427,11 @@ class InputfieldTinyMCESettings extends InputfieldTinyMCEClass {
 				$settings['toolbar'] = str_replace("$name ", "$name | ", $settings['toolbar']); 
 			}
 		}
+		
+		if(empty($settings['invalid_styles'])) {
+			// for empty invalid_styles use blank string rather than blank array 
+			$settings['invalid_styles'] = '';
+		}
 	
 		/*
 		if(isset($settings['plugins']) && is_array($settings['plugins'])) {
