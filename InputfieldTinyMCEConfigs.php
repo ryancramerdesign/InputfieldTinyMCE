@@ -455,22 +455,20 @@ class InputfieldTinyMCEConfigs extends InputfieldTinyMCEClass {
 		if(!$configurable) return $fieldset;
 
 		$inlineLabel = $this->_('Inline editor');
-		$regularLabel = $this->_('Regular editor');
+		$regularLabel = $this->_('Normal editor');
 
 		$f = $fieldset->InputfieldRadios;
 		$f->attr('name', 'inlineMode');
 		$f->label = $this->_('Editor mode');
 		$f->icon = 'map-signs';
-		$f->addOption(0, $regularLabel . ' [span.detail] ' . $this->_('(flexible height, user resizable)') . ' [/span]');
+		$f->addOption(0, $regularLabel . ' [span.detail] ' . $this->_('(flexible height, user resizable, lazy loaded)') . ' [/span]');
 		$f->addOption(1, $inlineLabel . ' [span.detail] ' . $this->_('(variable height, matches content)') . ' [/span]');
 		$f->addOption(2, $inlineLabel . ' [span.detail] ' . $this->_('(fixed height, uses height setting)') . ' [/span]');
 		$f->attr('value', (int) $this->inputfield->inlineMode);
 		$f->description = 
-			$this->_('When inline mode is enabled, the editor will not be loaded until you click in the text.') . ' ' . 
-			$this->_('This is faster and more efficient when there several TinyMCE fields on the page.');
-		$f->notes = 
-			$this->_('The Regular editor works well for a main bodycopy and sidebar type fields.') . ' ' . 
-			$this->_('The Inline editor is preferable when there can be several editor instances, such as within repeatable types.');
+			$this->_('When the inline editor is used, the editor will not be loaded (or have its toolbar visible) until you click in the text.') . ' ' . 
+			$this->_('When the normal editor is used, it is loaded when it becomes visible and its toolbar is always visible.') . ' ' . 
+			$this->_('The normal editor includes a status bar and resize handle while the inline editor does not.');
 		$f->themeOffset = 1;
 		$f->columnWidth = 70; 
 		$fieldset->add($f);

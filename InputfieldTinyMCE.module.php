@@ -68,7 +68,7 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 		return array(
 			'title' => 'TinyMCE',
 			'summary' => 'TinyMCE rich text editor version ' . self::mceVersion . '.',
-			'version' => 603,
+			'version' => 604,
 			'icon' => 'keyboard-o',
 			'requires' => 'ProcessWire>=3.0.200, MarkupHTMLPurifier',
 		);
@@ -525,7 +525,7 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 		$imageField = $upload ? $this->tools->getImageField() : null;
 		$field = $settingsField instanceof Field ? $settingsField : $this->hasField;
 		
-		if($this->inlineMode) {
+		if($this->inlineMode > 0) {
 			$cssFile = $this->settings->getContentCssUrl();
 			$this->wire()->config->styles->add($cssFile);
 		}
@@ -599,7 +599,7 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 		$script = 'script';
 		$this->addClass('InputfieldTinyMCEEditor InputfieldTinyMCENormal');
 		$out = parent::___render();
-		$js = "InputfieldTinyMCE.init('#$id'); ";
+		$js = "InputfieldTinyMCE.init('#$id', 'module.render'); ";
 		$out .= "<$script>$js</$script>";
 		return $out;
 	}
