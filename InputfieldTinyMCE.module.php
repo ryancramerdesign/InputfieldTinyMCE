@@ -22,6 +22,7 @@
  * Field/Inputfield settings
  * -------------------------
  * @property int $inlineMode Use inline mode? 0=Regular editor, 1=Inline editor, 2=Fixed height inline editor
+ * @property int $lazyMode Use lazy-loading mode? 0=Off, 1=Lazy, 2=Extra lazy
  * @property array $toggles Markup toggles, see self::toggle* constants
  * @property array $features General features: toolbar, menubar, statusbar, stickybars, spellcheck, purifier, imgUpload, imgResize
  * @property array $headlines Allowed headline types
@@ -68,7 +69,7 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 		return array(
 			'title' => 'TinyMCE',
 			'summary' => 'TinyMCE rich text editor version ' . self::mceVersion . '.',
-			'version' => 604,
+			'version' => 605,
 			'icon' => 'keyboard-o',
 			'requires' => 'ProcessWire>=3.0.200, MarkupHTMLPurifier',
 		);
@@ -247,6 +248,7 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 		$data = array(
 			'contentType' => FieldtypeTextarea::contentTypeHTML,
 			'inlineMode' => 0,
+			'lazyMode' => 1, // 0=off, 1=load when visible, 2=load on click
 			'features' => array(
 				'toolbar',
 				'menubar',
@@ -525,7 +527,7 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 		$imageField = $upload ? $this->tools->getImageField() : null;
 		$field = $settingsField instanceof Field ? $settingsField : $this->hasField;
 		
-		if($this->inlineMode > 0) {
+		if($this->inlineMode > 0 || $this->lazyMode > 1) {
 			$cssFile = $this->settings->getContentCssUrl();
 			$this->wire()->config->styles->add($cssFile);
 		}
@@ -595,12 +597,17 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 	 * 
 	 */
 	protected function renderNormal() {
-		$id = $this->attr('id');
-		$script = 'script';
 		$this->addClass('InputfieldTinyMCEEditor InputfieldTinyMCENormal');
 		$out = parent::___render();
-		$js = "InputfieldTinyMCE.init('#$id', 'module.render'); ";
-		$out .= "<$script>$js</$script>";
+		if($this->lazyMode > 1) {
+			$height = ((int) $this->height) . 'px';
+			$out = 
+				"<div class='InputfieldTinyMCEPlaceholder' style='height:$height'>" . 
+					"<div class='mce-content-body'></div>" . 
+				"</div>$out";
+		} else {
+			$out .= $this->renderInitScript();
+		}
 		return $out;
 	}
 
@@ -614,17 +621,32 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 		$attrs = $this->getAttributes();
 		$inlineFixed = (int) $this->inlineMode > 1; 
 		$value = $this->tools->purifyValue($attrs['value']);
-		$rows = (int) $attrs['rows'];
 		unset($attrs['value'], $attrs['type'], $attrs['rows']);
 		$attrs['class'] = 'InputfieldTinyMCEEditor InputfieldTinyMCEInline mce-content-body';
 		$attrs['tabindex'] = '0';
-		if($inlineFixed && $rows > 1) {
-			$height = ($rows * 2) . 'em';
+		if($inlineFixed && $this->height) {
+			$height = ((int) $this->height) . 'px';
 			$style = isset($attrs['style']) ? $attrs['style'] : '';
 			$attrs['style'] = "overflow:auto;height:$height;$style";
 		}
 		$attrStr = $this->getAttributesString($attrs);
-		return "<div $attrStr>$value</div>";
+		$out = "<div $attrStr>$value</div>";
+		// optionally turn off lazy-loading mode for inline
+		// if(!$this->lazyMode) $out .= $this->renderInitScript();
+		return $out;
+	}
+
+	/**
+	 * Render script to init editor 
+	 * 
+	 * @return string
+	 * 
+	 */
+	protected function renderInitScript() {
+		$id = $this->attr('id');
+		$script = 'script';
+		$js = "InputfieldTinyMCE.init('#$id', 'module.render'); ";
+		return "<$script>$js</$script>";
 	}
 
 	/**

@@ -666,6 +666,7 @@ class InputfieldTinyMCESettings extends InputfieldTinyMCEClass {
 		$features = array();
 		if($inputfield->useFeature('imgUpload')) $features[] = 'imgUpload';
 		if($inputfield->useFeature('imgResize')) $features[] = 'imgResize';
+		if($inputfield->lazyMode) $features[] = "lazyMode$inputfield->lazyMode";
 		
 		$inputfield->wrapAttr('data-configName', $configName);
 		$inputfield->wrapAttr('data-settings', json_encode($dataSettings));

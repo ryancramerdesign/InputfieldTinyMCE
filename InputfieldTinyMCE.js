@@ -119,7 +119,8 @@ var InputfieldTinyMCE = {
 		inline: 'InputfieldTinyMCEInline',
 		normal: 'InputfieldTinyMCENormal',
 		loaded: 'InputfieldTinyMCELoaded',
-		editor: 'InputfieldTinyMCEEditor'
+		editor: 'InputfieldTinyMCEEditor',
+		placeholder: 'InputfieldTinyMCEPlaceholder'
 	},
 	
 	/**
@@ -287,6 +288,43 @@ var InputfieldTinyMCE = {
 	},
 	
 	/**
+	 * Lazy load placeholder click event
+	 *
+	 * @param e
+	 * @returns {boolean}
+	 *
+	 */
+	clickPlaceholder: function(e) {
+		var t = InputfieldTinyMCE;
+		var $placeholder = $(this);
+		var $textarea = $placeholder.next('textarea');
+		$placeholder.remove();
+		t.log('placeholderClick', $placeholder);
+		if($textarea.length) t.init('#' + $textarea.attr('id'), 'event.' + e.type);
+		return false;
+	},
+	
+	/**
+	 * Init/populate lazy load placeholder elements within given target
+	 *
+	 * @param $placeholders Placeholders are wrapper that has them within
+	 *
+	 */
+	initPlaceholders: function($placeholders) {
+		if(!$placeholders.length) return;
+		var t = this;
+		var $item = $placeholders.first();
+		if(!$item.hasClass(t.cls.placeholder)) $placeholders = $item.find('.' + t.cls.placeholder);
+		$placeholders.each(function() {
+			var $placeholder = $(this);
+			var $textarea = $placeholder.next('textarea');
+			t.log('initPlaceholder', $placeholder);
+			$placeholder.children('.mce-content-body').html($textarea.val());
+			$placeholder.on('click touchstart', t.clickPlaceholder);
+		});
+	},
+	
+	/**
 	 * Init callback function
 	 *
 	 * @param editor
@@ -415,6 +453,7 @@ var InputfieldTinyMCE = {
 	 */
 	resetEditors: function($editors) {
 		var t = this;
+		t.allowLazy = false;
 		$editors.each(function() {
 			var $editor = $(this);
 			if(!$editor.hasClass(t.cls.loaded)) return;
@@ -425,6 +464,7 @@ var InputfieldTinyMCE = {
 			// t.init('#' + editorId, 'resetEditors');
 		});
 		t.initEditors($editors);
+		t.allowLazy = true;
 	},
 	
 	/**
@@ -508,9 +548,7 @@ var InputfieldTinyMCE = {
 				if($editors.length) {
 					t.log(e.type + '.resetEditors', $editors);
 					// force all to load
-					t.allowLazy = false;
 					t.resetEditors($editors);
-					t.allowLazy = true;
 				}
 			})
 			.on('reload', '.Inputfield', function() {
@@ -529,6 +567,8 @@ var InputfieldTinyMCE = {
 					t.log('reloaded', $inputfield.attr('id'));
 					t.initEditors($editors);
 				}
+				var $placeholders = $inputfield.find('.' + t.cls.placeholder);
+				if($placeholders.length) t.initPlaceholders($placeholders);
 				return false;
 			})
 			/*
@@ -548,8 +588,10 @@ var InputfieldTinyMCE = {
 				}
 			})
 			.on('clicklangtab wiretabclick', function(e, $newTab) {
+				var $placeholders = $newTab.find('.' + t.cls.placeholder);
 				var $editors = $newTab.find('.' + t.cls.lazy + ':visible');
 				t.log(e.type, $newTab.attr('id'));
+				if($placeholders.length) t.initPlaceholders($placeholders);
 				if($editors.length) t.initEditors($editors);
 			});
 			
@@ -569,12 +611,15 @@ var InputfieldTinyMCE = {
 			this.init(editorId, 'documentReady');
 		}
 		this.initDocumentEvents();
+		var $placeholders = $('.' + this.cls.placeholder + ':visible');
+		if($placeholders.length) this.initPlaceholders($placeholders);
 		if(this.debug) {
 			this.log('qty', 
 				'normal=' + $('.' + this.cls.normal).length + ', ' + 
 				'inline=' +  $('.' + this.cls.inline).length + ', ' + 
 				'lazy=' + $('.' + this.cls.lazy).length + ', ' + 
-				'loaded=' + $('.' + this.cls.loaded).length 
+				'loaded=' + $('.' + this.cls.loaded).length + ', ' + 
+				'placeholders=' + $placeholders.length
 			);
 		}
 	},
@@ -593,7 +638,8 @@ var InputfieldTinyMCE = {
 	 */
 	init: function(id, caller) {
 		
-		var $editor, config, features, $inputfield, selector, _id = id, t = this;
+		var $editor, config, features, $inputfield, 
+			selector, isLazy, useLazy, _id = id, t = this;
 		
 		if(!this.isDocumentReady) {
 			this.editorIds.push(id); 
@@ -632,18 +678,6 @@ var InputfieldTinyMCE = {
 			return false;
 		}
 		
-		var isLazy = $editor.hasClass(t.cls.lazy);
-		
-		if(t.allowLazy && !isLazy && !$editor.is(':visible') && !$editor.hasClass(t.cls.inline)) {
-			$editor.addClass(t.cls.lazy);
-			this.log('init-lazy', id + caller);
-			return true;
-		} else if(isLazy) {
-			$editor.removeClass(t.cls.lazy);
-		}
-		
-		this.log('init', id + caller);
-		
 		if(id.indexOf('Inputfield_') === 0) {
 			$inputfield = jQuery('#wrap_' + id);
 		} else {
@@ -655,6 +689,18 @@ var InputfieldTinyMCE = {
 		}
 		
 		features = $inputfield.attr('data-features');
+		useLazy = t.allowLazy && features.indexOf('lazyMode') > -1;
+		isLazy = $editor.hasClass(t.cls.lazy);
+		
+		if(useLazy && !isLazy && !$editor.is(':visible') && !$editor.hasClass(t.cls.inline)) {
+			$editor.addClass(t.cls.lazy);
+			this.log('init-lazy', id + caller);
+			return true;
+		} else if(isLazy) {
+			$editor.removeClass(t.cls.lazy);
+		}
+		
+		this.log('init', id + caller);
 		
 		config = this.getConfig($editor, $inputfield);
 		config.selector = selector;

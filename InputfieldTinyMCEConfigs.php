@@ -461,13 +461,13 @@ class InputfieldTinyMCEConfigs extends InputfieldTinyMCEClass {
 		$f->attr('name', 'inlineMode');
 		$f->label = $this->_('Editor mode');
 		$f->icon = 'map-signs';
-		$f->addOption(0, $regularLabel . ' [span.detail] ' . $this->_('(flexible height, user resizable, lazy loaded)') . ' [/span]');
-		$f->addOption(1, $inlineLabel . ' [span.detail] ' . $this->_('(variable height, matches content)') . ' [/span]');
-		$f->addOption(2, $inlineLabel . ' [span.detail] ' . $this->_('(fixed height, uses height setting)') . ' [/span]');
+		$f->addOption(0, $regularLabel . ' [span.detail] ' . $this->_('(flexible height, user resizable)') . ' [/span]');
+		$f->addOption(1, $inlineLabel . ' [span.detail] ' . $this->_('(variable height that matches content)') . ' [/span]');
+		$f->addOption(2, $inlineLabel . ' [span.detail] ' . $this->_('(fixed height that uses height setting)') . ' [/span]');
 		$f->attr('value', (int) $this->inputfield->inlineMode);
 		$f->description = 
 			$this->_('When the inline editor is used, the editor will not be loaded (or have its toolbar visible) until you click in the text.') . ' ' . 
-			$this->_('When the normal editor is used, it is loaded when it becomes visible and its toolbar is always visible.') . ' ' . 
+			$this->_('When the normal editor is used, you can optionally select a lazy loading option below.') . ' ' . 
 			$this->_('The normal editor includes a status bar and resize handle while the inline editor does not.');
 		$f->themeOffset = 1;
 		$f->columnWidth = 70; 
@@ -485,6 +485,20 @@ class InputfieldTinyMCEConfigs extends InputfieldTinyMCEClass {
 		$f->appendMarkup = "&nbsp;<span class='detail'>px</span>";
 		$fieldset->add($f);
 		
+		$f = $fieldset->InputfieldRadios;
+		$f->attr('name', 'lazyMode');
+		$f->label = $this->_('When to load and initialize the normal editor?'); 
+		$f->description = $this->_('Using lazy loading can significantly improve performance, especially when there are multiple editors on the same page.'); 
+		$f->icon = 'clock-o';
+		$offLabel = '[span.detail] (' . $this->_('lazy loading off') . ') [/span]';
+		$f->addOption(0, $this->_('Load editor when the page loads') . " $offLabel"); 
+		$f->addOption(1, $this->_('Load editor when it becomes visible')); 
+		$f->addOption(2, $this->_('Load editor when it is clicked')); 
+		$f->val((int) $this->inputfield->lazyMode);
+		$f->showIf = 'inlineMode=0';
+		$f->themeOffset = 1;
+		$fieldset->add($f);
+
 		$f = $fieldset->InputfieldCheckboxes;
 		$f->attr('name', 'features');
 		$f->label = $this->_('Features');
