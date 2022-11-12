@@ -485,6 +485,28 @@ var InputfieldTinyMCE = {
 	},
 	
 	/**
+	 * Find and initialize editors within a wrapper
+	 * 
+ 	 * @param $wrapper
+	 * @param selector Optional
+	 * 
+	 */	
+	initEditorsIn: function($wrapper, selector) {
+		if(typeof selector === 'undefined') {
+			selector = 
+				'.' + this.cls.lazy + ':visible, ' +
+				'.' + this.cls.editor + 
+				':not(.' + this.cls.loaded + ')' + 
+				':not(.' + this.cls.lazy + ')' + 
+				':not(.' + this.cls.inline + ')';
+		}
+		var $placeholders = $wrapper.find('.' + this.cls.placeholder);
+		var $editors = $wrapper.find(selector);
+		if($placeholders.length) this.initPlaceholders($placeholders);
+		if($editors.length) this.initEditors($editors);
+	},
+	
+	/**
 	 * Get config (config + custom settings)
 	 * 
  	 * @param $editor Editor Textarea (Regular) or div (Inline)
@@ -559,27 +581,21 @@ var InputfieldTinyMCE = {
 					t.destroyEditors($editors);
 				}
 			})
-			.on('reloaded', '.Inputfield', function() {
+			.on('reloaded', '.Inputfield', function(e) {
+				t.initEditorsIn($(this));
+				/*
 				var $inputfield = $(this);
 				var s = '.' + t.cls.editor + ':not(.' + t.cls.loaded + '):not(.' + t.cls.lazy + ')';
 				var $editors = $inputfield.find(s);
 				if($editors.length) {
-					t.log('reloaded', $inputfield.attr('id'));
+					t.log(e.type, $inputfield.attr('id'));
 					t.initEditors($editors);
 				}
 				var $placeholders = $inputfield.find('.' + t.cls.placeholder);
 				if($placeholders.length) t.initPlaceholders($placeholders);
+				 */
 				return false;
 			})
-			/*
-			.on('sortstart', function() {
-				var $editors = $(e.target).find('.InputfieldTinyMCELoaded'); 
-				$editors.each(function() {
-					var $editor = $(this);
-					t.log('sortstart', $editor.attr('id'));
-				}); 
-			})
-			*/
 			.on('sortstop', function(e) {
 				var $editors = $(e.target).find('.' + t.cls.loaded);
 				if($editors.length) {
@@ -587,14 +603,30 @@ var InputfieldTinyMCE = {
 					t.resetEditors($editors);
 				}
 			})
+			.on('opened', '.Inputfield', function(e) {
+				t.initEditorsIn($(this));
+			})
 			.on('clicklangtab wiretabclick', function(e, $newTab) {
+				t.initEditorsIn($newTab);
+				/*
 				var $placeholders = $newTab.find('.' + t.cls.placeholder);
 				var $editors = $newTab.find('.' + t.cls.lazy + ':visible');
 				t.log(e.type, $newTab.attr('id'));
 				if($placeholders.length) t.initPlaceholders($placeholders);
 				if($editors.length) t.initEditors($editors);
+				 */
 			});
-			
+		
+		/*
+		.on('sortstart', function() {
+			var $editors = $(e.target).find('.InputfieldTinyMCELoaded'); 
+			$editors.each(function() {
+				var $editor = $(this);
+				t.log('sortstart', $editor.attr('id'));
+			}); 
+		})
+		*/
+		
 		this.eventsReady = true;
 	},
 	
