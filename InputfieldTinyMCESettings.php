@@ -362,7 +362,7 @@ class InputfieldTinyMCESettings extends InputfieldTinyMCEClass {
 			// default
 			$url = $defaultUrl;
 
-		} else if(strpos($content_css, '/')) {
+		} else if(strpos($content_css, '/') !== false) {
 			// custom file
 			$url = $rootUrl . ltrim($content_css, '/');
 
