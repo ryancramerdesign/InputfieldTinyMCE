@@ -678,6 +678,9 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 	 * 
 	 */
 	public function ___processInput(WireInputData $input) {
+
+		$settingsField = $this->settingsField;
+		if($settingsField) $this->settings->applySettingsField($settingsField);
 		
 		$name = $this->attr('name');
 		$useName = $name;
