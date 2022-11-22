@@ -47,6 +47,7 @@
  * 
  * Runtime settings
  * ----------------
+ * @property string $configName
  * @property-read bool $readonly Automatically set during renderValue mode
  * @property-read bool $initialized
  * @property array $external_plugins URLs of external plugins, this is also a TinyMCE setting
@@ -69,7 +70,7 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 		return array(
 			'title' => 'TinyMCE',
 			'summary' => 'TinyMCE rich text editor version ' . self::mceVersion . '.',
-			'version' => 606,
+			'version' => 607,
 			'icon' => 'keyboard-o',
 			'requires' => 'ProcessWire>=3.0.200, MarkupHTMLPurifier',
 		);
@@ -434,6 +435,32 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 		
 		return parent::set($key, $value);
 	}
+
+	/**
+	 * Get styles to add in <head>
+	 * 
+	 * @return string
+	 * 
+	 */
+	public function getExtraStyles() {
+		$a = array();
+		$skin = $this->skin;
+		
+		if(strpos($skin, 'dark') !== false && strpos($this->content_css, 'dark') === false) {
+			// ensure some menubar/toolbar labels are not black-on-black in dark skin + light content_css
+			// this was necessary as of TinyMCE 6.2.0
+			$a[] = "body .tox-collection__item-label > *:not(code):not(pre) { color: #eee !important; }";
+		}
+
+		if($skin && $skin != 'custom') {
+			// make dialogs use PW native colors for buttons (without having to make a custom skin for it)
+			$buttonSelector = ".tox-dialog .tox-button:not(.tox-button--secondary):not(.tox-button--icon)";
+			$a[] = "$buttonSelector { background-color: #3eb998; border-color: #3eb998; }";
+			$a[] = "$buttonSelector:hover { background-color: #e83561; border-color: #e83561; }";
+		}
+		
+		return implode(' ', $a);
+	}
 	
 	/**
 	 * Render ready that only needs one call for entire request
@@ -447,31 +474,17 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 		$class = $this->className();
 		$config = $this->wire()->config;
 		$mceUrl = $this->mcePath(true);
-		$skin = $this->skin;
-		$addStyles = array();
 		
 		$config->scripts->add($mceUrl . 'tinymce.min.js');
 		
 		$jQueryUI = $modules->get('JqueryUI'); /** @var JqueryUI $jQueryUI */
 		$jQueryUI->use('modal');
-		
-		if(strpos($skin, 'dark') !== false && strpos($this->content_css, 'dark') === false) {
-			// ensure some menubar/toolbar labels are not black-on-black in dark skin + light content_css
-			// this was necessary as of TinyMCE 6.2.0
-			$addStyles[] = "body .tox-collection__item-label > *:not(code):not(pre) { color: #eee !important; }";
-		}
 	
-		if($skin && $skin != 'custom' && $adminTheme) {
-			// make dialogs use PW native colors for buttons (without having to make a custom skin for it)
-			$buttonSelector = ".tox-dialog .tox-button:not(.tox-button--secondary):not(.tox-button--icon)";
-			$addStyles[] = "$buttonSelector { background-color: #3eb998; border-color: #3eb998; }";
-			$addStyles[] = "$buttonSelector:hover { background-color: #e83561; border-color: #e83561; }";
-		}
-		
-		if(count($addStyles) && $adminTheme) {
+		$css = $this->getExtraStyles();
+		if($css && $adminTheme) {
 			// note: using a body class (rather than <style>) interferes with TinyMCE inline mode
 			// making it leave toolbar/menubar active even when moving out of the field
-			$adminTheme->addExtraMarkup('head', '<style>' . implode(' ', $addStyles) . '</style>'); 
+			$adminTheme->addExtraMarkup('head', "<style>$css</style>"); 
 		}
 		
 		$js = array(
