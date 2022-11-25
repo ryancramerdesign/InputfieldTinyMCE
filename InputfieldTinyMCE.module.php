@@ -70,7 +70,7 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 		return array(
 			'title' => 'TinyMCE',
 			'summary' => 'TinyMCE rich text editor version ' . self::mceVersion . '.',
-			'version' => 607,
+			'version' => 608,
 			'icon' => 'keyboard-o',
 			'requires' => 'ProcessWire>=3.0.200, MarkupHTMLPurifier',
 		);
@@ -539,6 +539,7 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 		$upload = $this->useFeature('imgUpload');
 		$imageField = $upload ? $this->tools->getImageField() : null;
 		$field = $settingsField instanceof Field ? $settingsField : $this->hasField;
+		$addSettings = array();
 		
 		if($this->inlineMode > 0 || $this->lazyMode > 1) {
 			$cssFile = $this->settings->getContentCssUrl();
@@ -551,12 +552,17 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 			$this->wrapAttr('data-upload-page', $this->hasPage->id);
 			$this->wrapAttr('data-upload-field', $imageField->name);
 			
-		} else if(!$this->hasPage) {
-			// pwimage plugin requires a page editor
-			$replaceTools['pwimage'] = 'image';
-			if($this->wire()->page->template->name !== 'admin') {
-				// pwlink requires admin
-				$replaceTools['pwlink'] = 'link';
+		} else {
+			// disable drag-drop "data:base64..." images
+			$addSettings['paste_data_images'] = false;
+			if(!$this->hasPage) {
+				// pwimage plugin requires a page editor
+				$page = $this->wire()->page;
+				$replaceTools['pwimage'] = '';
+				if($page->template->name !== 'admin' && !$page->get('_PageFrontEdit')) {
+					// pwlink requires admin
+					$replaceTools['pwlink'] = 'link';
+				}
 			}
 		}
 	
@@ -578,8 +584,8 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 				$this->configName = $field->name;
 			}
 		}
-		
-		$this->settings->applyRenderReadySettings();
+	
+		$this->settings->applyRenderReadySettings($addSettings);
 
 		return parent::renderReady($parent, $renderValueMode);
 	}
@@ -694,12 +700,16 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 
 		$settingsField = $this->settingsField;
 		if($settingsField) $this->settings->applySettingsField($settingsField);
-		
+	
+		$id = $this->attr('id');
 		$name = $this->attr('name');
 		$useName = $name;
+		$rename = $this->inlineMode && $id && $id !== $name;
 		
-		if($this->inlineMode) {
-			$useName = "Inputfield_$name";
+		if($rename) {
+			// in inlineMode TinyMCE uses id attribute for input name
+			// $useName = "Inputfield_$name";
+			$useName = $id;
 			$this->attr('name', $useName);
 		}
 		
@@ -715,7 +725,7 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 			}
 		}
 		
-		if($this->inlineMode) {
+		if($rename) {
 			$this->attr('name', $name);
 		}
 		

@@ -20,7 +20,7 @@
 var InputfieldTinyMCEUploadHandler = (blobInfo, progress) => new Promise((resolve, reject) => {
 	
 	var editor = tinymce.activeEditor;
-	var $inputfield = $('#' + editor.id).closest('.Inputfield');
+	var $inputfield = $('#' + editor.id).closest('.InputfieldTinyMCE');
 	var imageFieldName = $inputfield.attr('data-upload-field');
 	var $imageInputfield = $('#wrap_Inputfield_' + imageFieldName);
 	var pageId = $inputfield.attr('data-upload-page');
@@ -337,8 +337,10 @@ var InputfieldTinyMCE = {
 		
 		var t = this;
 		var $editor = jQuery('#' + editor.id);
-		var $inputfield = $editor.closest('.Inputfield');
+		var $inputfield = $editor.closest('.InputfieldTinyMCE');
 		var inputTimeout = null;
+		
+		if(!$inputfield.length) $inputfield = $editor.closest('.Inputfield');
 		
 		editor.on('Dirty', function() {
 			$inputfield.trigger('change');
@@ -446,6 +448,16 @@ var InputfieldTinyMCE = {
 			editor.destroy();
 		});
 	},
+	
+	/**
+	 * Destroy editors in given wrapper
+	 * 
+ 	 * @param $wrapper
+	 * 
+	 */	
+	destroyEditorsIn($wrapper) {
+		this.destroyEditors($wrapper.find('.' + this.cls.loaded));
+	}, 
 	
 	/**
 	 * Reset given editors (destroy and re-init)
@@ -722,10 +734,13 @@ var InputfieldTinyMCE = {
 		}
 		
 		if(!$inputfield.length) {
-			$inputfield = $editor.closest('.Inputfield');
+			$inputfield = $editor.closest('.InputfieldTinyMCE');
+			if(!$inputfield.length) $inputfield = $editor.closest('.Inputfield');
 		}
 		
 		features = $inputfield.attr('data-features');
+		if(typeof features === 'undefined') features = '';
+		
 		useLazy = t.allowLazy && features.indexOf('lazyMode') > -1;
 		isLazy = $editor.hasClass(t.cls.lazy);
 		

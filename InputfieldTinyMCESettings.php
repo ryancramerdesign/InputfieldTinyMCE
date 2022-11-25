@@ -250,11 +250,15 @@ class InputfieldTinyMCESettings extends InputfieldTinyMCEClass {
 			if(!is_array($plugins)) $plugins = explode(' ', $plugins);
 			if(!in_array('pwlink', $plugins)) {
 				unset($settings['external_plugins']['pwlink']);
-				$settings['menu']['insert']['items'] = str_replace('pwlink', 'link', $settings['menu']['insert']['items']);
+				if(isset($settings['menu'])) {
+					$settings['menu']['insert']['items'] = str_replace('pwlink', 'link', $settings['menu']['insert']['items']);
+				}
 			}
 			if(!in_array('pwimage', $plugins)) {
 				unset($settings['external_plugins']['pwimage']);
-				$settings['menu']['insert']['items'] = str_replace('pwimage', 'image', $settings['menu']['insert']['items']);
+				if(isset($settings['menu'])) {
+					$settings['menu']['insert']['items'] = str_replace('pwimage', 'image', $settings['menu']['insert']['items']);
+				}
 			}
 			$settings['plugins'] = implode(' ', $plugins);
 			if($settings['plugins'] === $defaults['plugins']) unset($settings['plugins']);
@@ -592,8 +596,10 @@ class InputfieldTinyMCESettings extends InputfieldTinyMCEClass {
 	/**
 	 * Determine which settings go where and apply to Inputfield
 	 * 
+	 * @param array $addSettings Optionally add this settings on top of those that would otherwise be used
+	 * 
 	 */
-	public function applyRenderReadySettings() {
+	public function applyRenderReadySettings(array $addSettings = array()) {
 	
 		$config = $this->wire()->config;
 		$adminTheme = $this->wire()->adminTheme;
@@ -607,10 +613,11 @@ class InputfieldTinyMCESettings extends InputfieldTinyMCEClass {
 		$addSettings = array_merge(
 			$this->getAddDefaults(),
 			$this->getFromSettingsFile(), 
-			$this->getFromSettingsJSON()
+			$this->getFromSettingsJSON(),
+			$addSettings
 		);
 
-		if($configName) {
+		if($configName && $configName !== 'default') {
 			$js = $config->js($inputfield->className());
 
 			// get settings that differ between field and defaults, then set to new named config
