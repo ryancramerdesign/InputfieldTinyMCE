@@ -67,16 +67,30 @@ class InputfieldTinyMCETools extends InputfieldTinyMCEClass {
 		if(!$page || !$page->id) return null;
 		$template = $page->template;
 		$imageField = null;
+		$alternates = array();
 		if(isset(self::$imageFields[$template->id])) {
 			$imageField = self::$imageFields[$template->id];
+			if($imageField === false) $imageField = null;
 		} else {
 			foreach($template->fieldgroup as $field) {
 				if(!$field->type instanceof FieldtypeImage) continue;
-				if($field->get('maxFiles') != 0) continue;
-				$imageField = $field;
-				self::$imageFields[$template->id] = $field;
-				break;
+				$maxFiles = (int) $field->get('maxFiles');
+				if(!$maxFiles) {
+					// found our image field
+					$imageField = $field;
+					break;
+				}
+				// do not allow 1-image fields
+				if($maxFiles === 1) continue; 
+			
+				// check if image field supports more items
+				$value = $page->get($field->name);
+				if($value && $value->count() >= (int) $field->get('maxFiles')) continue;
+				$alternates[] = $field;
 			}
+			// use an alternate that had a maxFiles value, if none could be found without a limit
+			if(!$imageField && count($alternates)) $imageField = reset($alternates);
+			self::$imageFields[$template->id] = ($imageField ? $imageField : false);
 		}
 		return $imageField;
 	}
