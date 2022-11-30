@@ -667,8 +667,9 @@ class InputfieldTinyMCESettings extends InputfieldTinyMCEClass {
 				}
 			}
 		}
-	
+
 		$dataSettings = count($dataSettings) ? $this->prepareSettingsForOutput($dataSettings) : array();
+		if($inputfield->renderValueMode) $dataSettings['readonly'] = true;
 		
 		$features = array();
 		if($inputfield->useFeature('imgUpload')) $features[] = 'imgUpload';

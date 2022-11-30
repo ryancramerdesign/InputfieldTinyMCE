@@ -55,6 +55,7 @@
  * @property-read InputfieldTinyMCEConfigs $configs
  * @property-read InputfieldTinyMCETools $tools
  * @property-read InputfieldTinyMCEFormats $formats
+ * @property-read null|bool $renderValueMode
  * 
  * 
  */
@@ -529,6 +530,8 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 			self::$loaded = true;
 		}
 
+		$this->renderValueMode = $renderValueMode;
+
 		$settingsField = $this->settingsField;
 		
 		if($settingsField) {
@@ -676,13 +679,11 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 	 */
 	public function ___renderValue() {
 		if(wireInstanceOf($this->wire->process, 'ProcessPageEdit')) {
-			$readonly = $this->readonly;
-			$this->readonly = true;
+			$this->renderValueMode = true; // should be set already, but just in case
 			$out = $this->render();
-			$this->readonly = $readonly;
 		} else {
 			$out =
-				"<div class='InputfieldTextareaContentTypeHTML InputfieldTinyMCEInline'>" .
+				"<div class='InputfieldTextareaContentTypeHTML mce-content-body'>" .
 					$this->wire()->sanitizer->purify($this->val()) .
 				"</div>";
 		}
