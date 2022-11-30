@@ -1055,6 +1055,7 @@ class InputfieldTinyMCEConfigs extends InputfieldTinyMCEClass {
 		$f->detail = $this->_('Use of are commas or newlines is optional.');
 			
 		$value = $this->inputfield->invalid_styles;
+		if(is_array($value)) $value = $this->formats()->invalidStylesArrayToStr($value);
 		if($value === $defaultValue) $value = 'default';
 		$f->val($value);
 		if(empty($value) || $value === 'default') $f->collapsed = Inputfield::collapsedYes;
