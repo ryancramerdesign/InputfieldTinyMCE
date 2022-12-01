@@ -402,7 +402,7 @@ class InputfieldTinyMCEFormats extends InputfieldTinyMCEClass {
 	 * background and background color are disabled for "a" elements, 
 	 * and height is disabled for "td" elements. 
 	 * 
-	 * @param string $value
+	 * @param string|array $value
 	 * @param array|string $defaultValue
 	 * @param bool $merge Merge with given defaultValue?
 	 * @return array|string
@@ -413,15 +413,21 @@ class InputfieldTinyMCEFormats extends InputfieldTinyMCEClass {
 		if(!is_array($defaultValue)) $defaultValue = array('*' => $defaultValue);
 		if($value === null) $value = $this->inputfield->invalid_styles;
 		if($value === 'default') return $defaultValue;
-		if(strpos($value, ',') !== false) $value = str_replace(',', ' ', $value);
+		if(is_string($value) && strpos($value, ',') !== false) $value = str_replace(',', ' ', $value);
 		
 		if($merge) {
 			if(is_string($defaultValue)) {
 				$defaultValue = $this->invalidStylesStrToArray($defaultValue);
 			}
-			$invalidStyles = $this->invalidStylesStrToArray($value, $defaultValue);
+			if(is_array($value)) {
+				$invalidStyles = array_merge($defaultValue, $value);
+			} else {
+				$invalidStyles = $this->invalidStylesStrToArray("$value", $defaultValue);
+			}
+		} else if(is_array($value)) {
+			$invalidStyles = $value;
 		} else {
-			$invalidStyles = $this->invalidStylesStrToArray($value);
+			$invalidStyles = $this->invalidStylesStrToArray("$value");
 		}
 		
 		return $invalidStyles;
