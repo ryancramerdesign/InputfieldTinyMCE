@@ -681,7 +681,11 @@ class InputfieldTinyMCEConfigs extends InputfieldTinyMCEClass {
 					$f->prependMarkup .= "<p class='ui-state-error-text'>$warning</p>";
 				}
 				if(isset($addDefaults['add_' . $key]) || isset($addDefaults['append_' . $key])) {
-					$f->detail = trim("$f->detail\n" . $this->_('NOTE: this setting is currently being appended to by a module JSON setting.')); 
+					$f->appendMarkup = trim("$f->appendMarkup\n" . 
+						"<p><span class='notes'>" . wireIconMarkup('info-circle') . ' ' . 
+						$this->_('This setting is currently being appended to by a module JSON setting.') . 
+						'</span></p>'
+					);
 				}
 			}
 		}
@@ -731,7 +735,7 @@ class InputfieldTinyMCEConfigs extends InputfieldTinyMCEClass {
 			$value = $this->inputfield->settingsFile;
 			$f->val($value);
 			if($value && !$isPost) {
-				$value = $config->urls->root . ltrim($value, '/');
+				$value = $config->paths->root . ltrim($value, '/');
 				$this->tools()->jsonDecodeFile($value, $f->label); // test decode
 			}
 			$f->themeOffset = 1;

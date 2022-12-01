@@ -78,7 +78,10 @@ class InputfieldTinyMCESettings extends InputfieldTinyMCEClass {
 				$value = $formats->getInvalidStyles($inputfield->invalid_styles, $defaultValue);
 			} else if($name === 'formats') {
 				// overlaps with native formats property so use data rather than get
-				$value = $inputfield->data('formats'); 
+				$value = $inputfield->data('formats');
+			} else if($name === 'templates') {
+				// overlaps with API variable
+				$value = $inputfield->data($name);
 			} else {
 				$value = $inputfield->get($name);
 				if($value === 'default') $value = $defaultValue;
