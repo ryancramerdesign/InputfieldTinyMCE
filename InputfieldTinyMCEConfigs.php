@@ -434,7 +434,7 @@ class InputfieldTinyMCEConfigs extends InputfieldTinyMCEClass {
 				$f->collapsed = Inputfield::collapsedBlank;
 				foreach($settingsFields as $field) {
 					/** @var Field $field */
-					$f->addOption($field->name, $field->getLabel());
+					$f->addOption($field->name, $field->getLabel() . " ($field->name)");
 				}
 				$value = $this->inputfield->settingsField;
 				$f->val($value);
@@ -882,6 +882,17 @@ class InputfieldTinyMCEConfigs extends InputfieldTinyMCEClass {
 			$f->showIf = "optionals!=$f->name";
 			$fieldset->add($f);
 		}
+		
+		$f = $inputfields->InputfieldTextarea;
+		$f->attr('name', 'extraCSS'); 
+		$f->val($this->inputfield->extraCSS); 
+		$f->label = $this->_('Extra CSS styles'); 
+		$f->description = 
+			$this->_('Enter any additional CSS styles you want to apply in all editors.') . ' ' . 
+			$this->_('This simply adds extra CSS to the editor. It does not define selectable styles in the toolbar/menubar.'); 
+		$f->icon = 'css3';
+		$f->collapsed = Inputfield::collapsedBlank;
+		$fieldset->add($f);
 
 		$exampleUrl = $config->urls($this->inputfield) . 'defaults.json';
 		$defaultsDetail =

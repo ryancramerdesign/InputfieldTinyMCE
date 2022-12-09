@@ -43,6 +43,7 @@
  * @property string $defaultsJSON JSON that merges with the defaults.json for all instances
  * @property array $optionals Names of optional settings that can be configured per-field
  * @property bool|int $debugMode Makes InputfieldTinyMCE.js use verbose console.log() messages
+ * @property string $extraCSS Extra CSS for editor, applies to all editors (appended to TinyMCE content_style setting)
  * There are also `$lang_name=packname` settings in multi-lang sites where "name" is lang name and "packname" is lang pack name
  * 
  * Runtime settings
@@ -71,7 +72,7 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 		return array(
 			'title' => 'TinyMCE',
 			'summary' => 'TinyMCE rich text editor version ' . self::mceVersion . '.',
-			'version' => 609,
+			'version' => 610,
 			'icon' => 'keyboard-o',
 			'requires' => 'ProcessWire>=3.0.200, MarkupHTMLPurifier',
 		);
@@ -206,6 +207,7 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 			'defaultsJSON' => '',
 			'extPluginOptions' => '',
 			'styleFormatsCSS' => '', // optionals
+			'extraCSS' => '', 
 			'optionals' => array(),
 			'debugMode' => false, 
 		);
@@ -535,6 +537,7 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 		$settingsField = $this->settingsField;
 		
 		if($settingsField) {
+			$this->configName = (string) $settingsField;
 			$settingsField = $this->settings->applySettingsField($settingsField);
 		}
 

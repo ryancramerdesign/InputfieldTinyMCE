@@ -35,7 +35,7 @@ class InputfieldTinyMCEFormats extends InputfieldTinyMCEClass {
 	 *
 	 */
 	static protected $blocks =
-		'/h1/h2/h3/h4/h5/h6/p/';
+		'/h1/h2/h3/h4/h5/h6/p/hr/';
 		// '/address/article/aside/blockquote/dd/details/div/dl/dt/' .
 		// '/footer/h1/h2/h3/h4/h5/h6/header/hgroup/hr/li/main/nav/ol/p/pre/' .
 		// '/section/table/'; 

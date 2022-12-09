@@ -747,6 +747,7 @@ var InputfieldTinyMCE = {
 		if(useLazy && !isLazy && !$editor.is(':visible') && !$editor.hasClass(t.cls.inline)) {
 			$editor.addClass(t.cls.lazy);
 			this.log('init-lazy', id + caller);
+			this.setInitializing(false);
 			return true;
 		} else if(isLazy) {
 			$editor.removeClass(t.cls.lazy);

@@ -166,6 +166,14 @@ class InputfieldTinyMCESettings extends InputfieldTinyMCEClass {
 			$data = $tools->jsonDecode($json, 'defaults JSON module setting'); 
 			if(is_array($data) && !empty($data)) $defaults = array_merge($defaults, $data);
 		}
+	
+		// extra CSS module setting
+		$extraCSS = $this->inputfield->extraCSS;
+		if(strlen($extraCSS)) {
+			$contentStyle = isset($defaults['content_style']) ? $defaults['content_style'] : '';
+			$contentStyle .= "\n$extraCSS";
+			$defaults['content_style'] = $contentStyle;
+		}
 
 		// optionals
 		foreach($optionalSettingNames as $name) {
@@ -439,6 +447,28 @@ class InputfieldTinyMCESettings extends InputfieldTinyMCEClass {
 			// for empty invalid_styles use blank string rather than blank array 
 			$settings['invalid_styles'] = '';
 		}
+		
+		if(!empty($settings['content_style'])) {
+			// namespace content_style for .mce_content_body
+			$contentStyle = $settings['content_style'];
+			$contentStyle = str_replace('}', "}\n", $contentStyle);
+			$contentStyle = preg_replace('![\s\r\n]+\{!', '{', $contentStyle);
+			$lines = explode("\n", $contentStyle);
+			foreach($lines as $k => $line) {
+				$line = trim($line);
+				if(empty($line)) {
+					unset($lines[$k]);
+				} else if(strpos($line, '.mce-content-body') !== false) {
+					continue;
+				} else if(strpos($line, '{')) {
+					$lines[$k] = ".mce-content-body $line";
+				}
+			}
+			$contentStyle = implode(' ', $lines);
+			while(strpos($contentStyle, '  ') !== false) $contentStyle = str_replace('  ', ' ', $contentStyle);
+			$contentStyle = str_replace(['{ ', ' }'], ['{', '}'], $contentStyle);
+			$settings['content_style'] = $contentStyle;
+		}
 	
 		/*
 		if(isset($settings['plugins']) && is_array($settings['plugins'])) {
@@ -626,7 +656,7 @@ class InputfieldTinyMCESettings extends InputfieldTinyMCEClass {
 			// get settings that differ between field and defaults, then set to new named config
 			$diffSettings = $this->getSettings($defaults, $configName);
 			$mergedSettings = array_merge($defaults, $diffSettings);
-			$contentStyle = isset($mergedSettings['content_style']) ? $mergedSettings['content_style'] : '';
+			//$contentStyle = isset($mergedSettings['content_style']) ? $mergedSettings['content_style'] : '';
 
 			if(count($addSettings)) {
 				// merges $addSettings into $diffSettings
@@ -646,7 +676,7 @@ class InputfieldTinyMCESettings extends InputfieldTinyMCEClass {
 		} else {
 			// no configName in use, data-settings attribute will hold all non-default settings
 			$dataSettings = $this->getSettings($defaults);
-			$contentStyle = isset($dataSettings['content_style']) ? $dataSettings['content_style'] : '';
+			//$contentStyle = isset($dataSettings['content_style']) ? $dataSettings['content_style'] : '';
 			if(count($addSettings)) {
 				$this->applyAddSettings($dataSettings, $addSettings, $defaults);
 			}
@@ -655,6 +685,7 @@ class InputfieldTinyMCESettings extends InputfieldTinyMCEClass {
 		if($inputfield->inlineMode) {
 			if($inputfield->inlineMode < 2) unset($dataSettings['height']);
 			$dataSettings['inline'] = true;
+			/*
 			if($contentStyle && $adminTheme) {
 				$cssName = $configName;
 				if(empty($cssName)) {
@@ -663,12 +694,13 @@ class InputfieldTinyMCESettings extends InputfieldTinyMCEClass {
 				$inputfield->addClass("tmcei-$cssName", 'wrapClass');
 				if(!isset(self::$caches['renderReadyInline'][$cssName])) {
 					// inline mode content_style settings, ensure they are visible before inline init
-					$ns = ".tmcei-$cssName .mce-content-body ";
-					$contentStyle = $ns . str_replace('}', "} $ns", $contentStyle) . '{}';
-					$adminTheme->addExtraMarkup('head', "<style>$contentStyle</style>");
+					//$ns = ".tmcei-$cssName .mce-content-body ";
+					//$contentStyle = $ns . str_replace('}', "} $ns", $contentStyle) . '{}';
+					//$adminTheme->addExtraMarkup('head', "<style>$contentStyle</style>");
 					self::$caches['renderReadyInline'][$cssName] = $cssName;
 				}
 			}
+			*/
 		}
 
 		$dataSettings = count($dataSettings) ? $this->prepareSettingsForOutput($dataSettings) : array();
