@@ -525,14 +525,16 @@ var InputfieldTinyMCE = {
 	 * 
  	 * @param $editor Editor Textarea (Regular) or div (Inline)
 	 * @param $inputfield Editor Wrapping .Inputfield element
+	 * @param features
 	 * @returns {{}}
 	 * 
 	 */	
-	getConfig: function($editor, $inputfield) {
+	getConfig: function($editor, $inputfield, features) {
 
 		var configName = $inputfield.attr('data-configName');
-		var settings = ProcessWire.config.InputfieldTinyMCE.settings.default;
-		var namedSettings = ProcessWire.config.InputfieldTinyMCE.settings[configName];
+		var globalConfig = ProcessWire.config.InputfieldTinyMCE;
+		var settings = globalConfig.settings.default;
+		var namedSettings = globalConfig.settings[configName];
 		var dataSettings = $inputfield.attr('data-settings');
 
 		if(typeof settings === 'undefined') {
@@ -559,9 +561,151 @@ var InputfieldTinyMCE = {
 		for(var n = 0; n < this.callbacks.onConfig.length; n++) {
 			this.callbacks.onConfig[n](settings, $editor, $inputfield);
 		}
+	
+		if(features.indexOf('pasteFilter') > -1) {
+			if(globalConfig.pasteFilter === 'text') {
+				settings.paste_as_text = true;
+			} else if(globalConfig.pasteFilter.length) {
+				settings.paste_preprocess = this.pastePreprocess;
+			}
+		}
+		/*
+		settings.paste_postprocess = function(editor, args) {
+			console.log(args.node);
+			args.node.setAttribute('id', '42');
+		};
+		 */
 		
 		return settings;
 	},
+	
+	/**
+	 * Pre-process paste
+	 * 
+ 	 * @param editor
+	 * @param args
+	 * 
+	 */	
+	pastePreprocess: function(editor, args) {
+	
+		var t = InputfieldTinyMCE;
+		var allow = ',' + ProcessWire.config.InputfieldTinyMCE.pasteFilter + ',';
+		var regexTag = /<([a-z0-9]+)([^>]*)>/gi;
+		var regexAttr = /([-_a-z0-9]+)=["']([^"']*)["']/gi;
+		var html = args.content;
+		var matchTag, matchAttr;
+		var removals = [];
+		var finds = [];
+		var replaces = [];
+		var startLength = html.length;
+		
+		if(args.internal) {
+			t.log('Skipping pasteFilter for interal copy/paste'); 
+			return; // skip filtering for internal copy/paste operations
+		}
+		
+		if(allow === ',text,') {
+			t.log('Skipping pasteFilter since paste_as_text settingw will be used'); 
+			return; // will be processed by paste_as_text setting
+		}
+		
+		while((matchTag = regexTag.exec(html)) !== null) {
+			
+			var tagOpen = matchTag[0]; // i.e. <strong>, <img src="..">, <h2>, etc.
+			var tagName = matchTag[1]; // i.e. 'strong', 'img', 'h2', etc.
+			var tagClose = '</' + tagName + '>'; // i.e. </strong>, </h2>
+			var tagAttrs = matchTag[2]; // i.e. 'src="a.jpg" alt="alt"'
+			var allowAttrs = false;
+	
+			// first see if we can match a tag replacement		
+			var find = ',' + tagName + '='; // i.e. ',b=strong'
+			var pos = allow.indexOf(find);
+			
+			if(pos > -1) {
+				// tag replacement
+				var rule = allow.substring(pos + 1); // i.e. b=strong,and,more
+				rule = rule.substring(0, rule.indexOf(',')); // i.e. b=strong
+				rule = rule.split('=');
+				var replaceTag = rule[1];
+				finds.push(tagOpen);
+				replaces.push('<' + replaceTag + '>');
+				finds.push(tagClose);
+				replaces.push('</' + replaceTag + '>');
+			}
+		
+			if(allow.indexOf(',' + tagName + '[') > -1) {
+				// tag appears in whitelist with attributes
+				allowAttrs = true;
+			} else if(allow.indexOf(',' + tagName + ',') === -1) {
+				// tag does not appear in whitelist
+				removals.push(tagOpen);
+				removals.push(tagClose);
+				continue;
+			} else {
+				// tag appears in whitelist (no attributes)
+			}
+			
+			if(tagAttrs.length) {
+				// tag has attributes
+				if(!allowAttrs) {
+					// attributes not allowed, replace with non-attribute tag
+					finds.push(tagOpen);
+					replaces.push('<' + tagName + '>');
+					continue;
+				}
+			} else {
+				// no attributes, nothing further to do
+				continue;
+			}
+				
+			var attrRemoves = [];
+			
+			while((matchAttr = regexAttr.exec(tagAttrs)) !== null) {
+				var attrStr = matchAttr[0]; // i.e. alt="hello"
+				var attrName = matchAttr[1]; // i.e. alt
+				var attrVal = matchAttr[2]; // i.e. hello
+				
+				if(allow.indexOf(',' + tagName + '[' + attrName + ']') > -1) {
+					// matches whitelist of tag with allowed attribute
+				} else if(allow.indexOf(',' + tagName + '[' + attrName + '=' + attrVal + ']') > -1) {
+					// matches whitelist of tag with allowed attribute having allowed value
+				} else {
+					// attributes do not match whitelist
+					attrRemoves.push(attrStr);
+				}
+			}
+			
+			if(attrRemoves.length) {
+				var replaceOpenTag = tagOpen;
+				for(var n = 0; n < attrRemoves.length; n++) {
+					replaceOpenTag = replaceOpenTag.replace(attrRemoves[n], '');
+				}
+				finds.push(tagOpen);
+				replaces.push(replaceOpenTag);
+			}
+		}
+		
+		// console.log('removals', removals);
+		
+		for(var n = 0; n < removals.length; n++) {
+			html = html.replace(removals[n], '');
+		}
+		
+		for(var n = 0; n < finds.length; n++) {
+			html = html.replace(finds[n], replaces[n]); 
+			// console.log(finds[n] + ' => ' + replaces[n]);
+		}
+		
+		while(html.indexOf('< ') > -1) html = html.replace('< ', '<');
+		while(html.indexOf(' >') > -1) html = html.replace(' >', '>');
+		while(html.indexOf('&nbsp;') > -1) html = html.replace('&nbsp;', ' ', html);
+		
+		html = html.replaceAll(/<([-a-z0-9]+)[^>]*>\s*<\/\1>/ig, ''); // remove empty tags
+		
+		t.log('Completed pasteFilter ' + startLength + ' => ' + html.length + ' bytes'); 
+		
+		args.content = html;
+	}, 
 	
 	/**
 	 * Document ready events
@@ -755,7 +899,7 @@ var InputfieldTinyMCE = {
 		
 		this.log('init', id + caller);
 		
-		config = this.getConfig($editor, $inputfield);
+		config = this.getConfig($editor, $inputfield, features);
 		config.selector = selector;
 		config.setup = this.setupEditor;
 		config.init_instance_callback = function(editor) {

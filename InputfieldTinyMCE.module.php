@@ -24,7 +24,7 @@
  * @property int $inlineMode Use inline mode? 0=Regular editor, 1=Inline editor, 2=Fixed height inline editor
  * @property int $lazyMode Use lazy-loading mode? 0=Off, 1=Lazy, 2=Extra lazy
  * @property array $toggles Markup toggles, see self::toggle* constants
- * @property array $features General features: toolbar, menubar, statusbar, stickybars, spellcheck, purifier, imgUpload, imgResize
+ * @property array $features General features: toolbar, menubar, statusbar, stickybars, spellcheck, purifier, imgUpload, imgResize, pasteFilter
  * @property array $headlines Allowed headline types
  * @property string $settingsFile Location of optional custom-settings.json settings file (URL relative to PW root URL)
  * @property string $settingsField Alternate field to inherit settings from rather than configure settings with this instance.
@@ -44,6 +44,7 @@
  * @property array $optionals Names of optional settings that can be configured per-field
  * @property bool|int $debugMode Makes InputfieldTinyMCE.js use verbose console.log() messages
  * @property string $extraCSS Extra CSS for editor, applies to all editors (appended to TinyMCE content_style setting)
+ * @property string $pasteFilter Rule string of elements and attributes allowed during filtered paste
  * There are also `$lang_name=packname` settings in multi-lang sites where "name" is lang name and "packname" is lang pack name
  * 
  * Runtime settings
@@ -72,7 +73,7 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 		return array(
 			'title' => 'TinyMCE',
 			'summary' => 'TinyMCE rich text editor version ' . self::mceVersion . '.',
-			'version' => 610,
+			'version' => 612,
 			'icon' => 'keyboard-o',
 			'requires' => 'ProcessWire>=3.0.200, MarkupHTMLPurifier',
 		);
@@ -87,6 +88,17 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 	const toggleCleanDiv = 2; // remove <div>s
 	const toggleCleanP = 4; // remove empty <p> tags	
 	const toggleCleanNbsp = 8; // remove &nbsp; entities
+	
+	/**
+	 * Default configuration for filtered paste
+	 *
+	 */
+	const defaultPasteFilter =
+		'p,strong,em,hr,br,u,s,h1,h2,h3,h4,h5,h6,ul,ol,li,blockquote,cite,' .
+		'a[href|id],a[target=_blank],' . // a[rel=nofollow|noopener|noreferrer],' . 
+		'img[src|alt],img[class=align_left|align_right|align_center],' .
+		'table[border],thead,tbody,tfoot,tr[rowspan],td[colspan],th[colspan],colgroup,col,' .
+		'sup,sub,figure,figcaption,code,pre,b=strong,i=em';
 
 	/**
 	 * Have editor scripts loaded in this request?
@@ -176,6 +188,7 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 		'document',
 		'imgUpload',
 		'imgResize',
+		'pasteFilter',
 	);
 
 	/**
@@ -208,6 +221,7 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 			'extPluginOptions' => '',
 			'styleFormatsCSS' => '', // optionals
 			'extraCSS' => '', 
+			'pasteFilter' => 'default', 
 			'optionals' => array(),
 			'debugMode' => false, 
 		);
@@ -261,6 +275,7 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 				'purifier',
 				'imgUpload',
 				'imgResize',
+				'pasteFilter',
 			),
 			'settingsFile' => '', 
 			'settingsField' => '', 
@@ -510,6 +525,7 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 				// settings specific to pwlink plugin
 				'classOptions' => $this->tools->linkConfig('classOptions')
 			),
+			'pasteFilter' => $this->tools->getPasteFiltersForJS(),
 			'debug' => (bool) $this->debugMode,
 		);
 	

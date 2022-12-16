@@ -605,25 +605,64 @@ class InputfieldTinyMCESettings extends InputfieldTinyMCEClass {
 				$addSettings[$name] = $addValue;
 				continue;
 			}
-			if(is_string($value) && is_string($addValue)) {
-				$value .= " $addValue";
-			} else if(is_array($addValue) && is_array($value)) {
-				foreach($addValue as $k => $v) {
-					if(is_int($k)) {
-						// append
-						$value[] = $v;
-					} else {
-						// append or replace
-						$value[$k] = $v;
-					}
-				}
-			} else {
-				$value = $addValue;
-			}
-			$addSettings[$name] = $value;
+			$addSettings[$name] = $this->mergeSetting($value, $addValue);
 		}
 	
 		$settings = array_merge($settings, $addSettings);
+	}
+
+	/**
+	 * Merge two setting values into one that combines them 
+	 * 
+	 * @param string|array|mixed $value
+	 * @param string|array|mixed $addValue
+	 * @return string|array|mixed
+	 * 
+	 */
+	protected function mergeSetting($value, $addValue) {
+		if(is_string($value) && is_string($addValue)) {
+			$value .= " $addValue";
+		} else if(is_array($addValue) && is_array($value)) {
+			foreach($addValue as $k => $v) {
+				if(is_int($k)) {
+					// append
+					$value[] = $v;
+				} else {
+					// append or replace
+					$value[$k] = $v;
+				}
+			}
+		} else {
+			$value = $addValue;
+		}
+		return $value;
+	}
+
+	/**
+	 * Merge all settings in given array and combine those with "add_" prefix
+	 * 
+	 * @param array $settings1
+	 * @param array $settings2 Optionally specify this to merge/combine with those in $settings1
+	 * @return array 
+	 * 
+	 */
+	protected function mergeSettings(array $settings1, array $settings2 = array()) {
+		$settings = array_merge($settings1, $settings2);
+		$addSettings = array();
+		foreach($settings1 as $key => $value) {
+			if(strpos($key, 'add_') !== 0) continue;
+			$addSettings[$key] = $value;
+		}
+		foreach($settings2 as $key => $value) {
+			if(strpos($key, 'add_') !== 0) continue;
+			if(isset($addSettings[$key])) {
+				$addSettings[$key] = $this->mergeSetting($addSettings[$key], $value);
+			} else {
+				$addSettings[$key] = $value;
+			}
+		}
+		if(count($addSettings)) $settings = array_merge($settings, $addSettings);
+		return $settings;
 	}
 
 	/**
@@ -635,20 +674,19 @@ class InputfieldTinyMCESettings extends InputfieldTinyMCEClass {
 	public function applyRenderReadySettings(array $addSettings = array()) {
 	
 		$config = $this->wire()->config;
-		$adminTheme = $this->wire()->adminTheme;
 		$inputfield = $this->inputfield;
 		$configName = $inputfield->getConfigName();
 		
 		// default settings
 		$defaults = $this->getDefaults();
-
-		// settings defined in custom JSON (file or input)
-		$addSettings = array_merge(
-			$this->getAddDefaults(),
-			$this->getFromSettingsFile(), 
-			$this->getFromSettingsJSON(),
-			$addSettings
-		);
+		$addDefaults = $this->getAddDefaults();
+		$fileSettings = $this->getFromSettingsFile();
+		$jsonSettings = $this->getFromSettingsJSON();
+		
+		if(count($fileSettings)) $addDefaults = $this->mergeSettings($addDefaults, $fileSettings);
+		if(count($jsonSettings)) $addDefaults = $this->mergeSettings($addDefaults, $jsonSettings);
+		if(count($addSettings)) $addDefaults = $this->mergeSettings($addDefaults, $addSettings);
+		$addSettings = $addDefaults;
 
 		if($configName && $configName !== 'default') {
 			$js = $config->js($inputfield->className());
@@ -706,9 +744,10 @@ class InputfieldTinyMCESettings extends InputfieldTinyMCEClass {
 		$dataSettings = count($dataSettings) ? $this->prepareSettingsForOutput($dataSettings) : array();
 		if($inputfield->renderValueMode) $dataSettings['readonly'] = true;
 		
-		$features = array();
-		if($inputfield->useFeature('imgUpload')) $features[] = 'imgUpload';
-		if($inputfield->useFeature('imgResize')) $features[] = 'imgResize';
+		$features = array('imgUpload', 'imgResize', 'pasteFilter');
+		foreach($features as $key => $feature) {
+			if(!$inputfield->useFeature($feature)) unset($features[$key]);
+		}
 		if($inputfield->lazyMode) $features[] = "lazyMode$inputfield->lazyMode";
 		
 		$inputfield->wrapAttr('data-configName', $configName);

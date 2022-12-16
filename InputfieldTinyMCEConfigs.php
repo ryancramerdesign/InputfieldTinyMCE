@@ -387,6 +387,14 @@ class InputfieldTinyMCEConfigs extends InputfieldTinyMCEClass {
 					$this->_('If not enabled, images can still be resized by dragging their resize handles, but new image files are not generated.') . ' ' .
 					$this->_('You can also use the pop-up image dialog to create image sizes and crops either way.')
 			),
+			'pasteFilter'  => array(
+				'label' => $this->_('Pastefilter'), 
+				'description' => 
+					$this->_('Reduces most pasted content to its basic semantic HTML to avoid messy tags and attributes from ending up in the editor due to a paste operation.') . ' ' . 
+					$this->_('Allowed elements and attributes are configurable in the InputfieldTinyMCE module settings.') . ' ' . 
+					$this->_('Pastefilter is only applied to content copied externally, from outside the TinyMCE field.')
+				
+			),
 		);
 
 	}
@@ -892,6 +900,27 @@ class InputfieldTinyMCEConfigs extends InputfieldTinyMCEClass {
 			$this->_('This simply adds extra CSS to the editor. It does not define selectable styles in the toolbar/menubar.'); 
 		$f->icon = 'css3';
 		$f->collapsed = Inputfield::collapsedBlank;
+		$fieldset->add($f);
+		
+		$f = $inputfields->InputfieldTextarea;
+		$f->attr('name', 'pasteFilter'); 
+		$value = $this->inputfield->pasteFilter;
+		if(empty($value)) $value = 'default';
+		$f->val($value);
+		$f->icon = 'paste';
+		$f->label = $this->_('Pastefilter whitelist'); 
+		$f->attr('rows', 3);
+		$f->description = 
+			$this->_('Comma-separated string of rules to define a whitelist of tags (and optionally attributes) to keep during a paste operation.') . ' ' .
+			$this->_('This setting is used when the “Pastefilter” feature is selected for a given field, and the user pastes in formatted text.') . ' ' .
+			$this->_('Enter the string `default` to use the default paste filter configuration. Enter string `text` to paste as plain text.') . ' ' . 
+			$this->_('Or specify multiple comma-separated rules like the following.') . "\n\n" . 
+			$this->_('Specify `tag` to allow tag without attributes, `tag[attribute]` to allow tag with attribute, `tag[attribute1|attribute2|etc]` to allow tag with multiple attributes.') . ' ' .
+			$this->_('Specify `tag[attribute=value]` to allow tag having attribute with specific value, or `tag[attribute=a|b|c]` to allow tag with attribute having any one of multiple values.') . ' ' . 
+			$this->_('Specify `foo=bar` to replace tag `foo` with tag `bar`, i.e. `b=strong` and `i=em` are common examples.');
+		$f->detail = '**' . $this->_('Default pastefilter whitelist:') . "**\n" . str_replace(',', ', ', InputfieldTinyMCE::defaultPasteFilter);
+		$f->collapsed = $value === 'default' ? Inputfield::collapsedYes : Inputfield::collapsedNo;
+		$f->themeOffset = 1;
 		$fieldset->add($f);
 
 		$exampleUrl = $config->urls($this->inputfield) . 'defaults.json';

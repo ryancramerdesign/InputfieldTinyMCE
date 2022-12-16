@@ -271,6 +271,63 @@ class InputfieldTinyMCETools extends InputfieldTinyMCEClass {
 	}
 
 	/**
+	 * Prepare pasteFilters string for JS
+	 * 
+	 * This converts the rules to a longer format that is optimized for matching from the 
+	 * InputfieldTinyMCE.js pasteProcess() function.
+	 * 
+	 * @return string
+	 * 
+	 */
+	public function getPasteFiltersForJS() {
+		
+		$pasteFilter = trim(strtolower($this->inputfield->pasteFilter));
+		if($pasteFilter === 'default') $pasteFilter = InputfieldTinyMCE::defaultPasteFilter;
+		
+		if(strpos($pasteFilter, "\n")) $pasteFilter = str_replace("\n", ',', $pasteFilter);
+		if(strpos($pasteFilter, ' ')) $pasteFilter = str_replace(' ', '', $pasteFilter);
+		
+		$pasteFilters = array();
+		
+		foreach(explode(',', $pasteFilter) as $tag) {
+			$tag = trim($tag);
+			if(empty($tag)) continue;
+			if(strpos($tag, '[')) {
+				// tag includes attributes
+				list($tag, $attrs) = explode('[', $tag, 2);
+				if(empty($tag) || !ctype_alnum($tag)) continue;
+				$attrs = rtrim($attrs, ']');
+				if(strpos($attrs, '=')) {
+					// i.e. img[class=align_left|align_right]
+					list($attrs, $values) = explode('=', $attrs, 2);
+					$values = strpos($values, '|') ? explode('|', $values) : array($values);
+				} else {
+					// i.e. img[src|alt]
+					$values = null;
+				}
+				$attrs = strpos($attrs, '|') ? explode('|', $attrs) : array($attrs);
+				foreach($attrs as $attr) {
+					if(!ctype_alnum(str_replace(['-', '_'], '', $attr))) continue; // invalid attribute
+					if($values) {
+						foreach($values as $value) {
+							if(!ctype_alnum(str_replace(['-', '_', ':', '.', '@'], '', $value))) continue; // invalid value
+							$pasteFilters[] = $tag . "[$attr=$value]";
+						}
+					} else {
+						$pasteFilters[] = $tag . '[' . $attr . ']';
+					}
+				}
+			} else {
+				// tag only or 'tag=replacement'
+				if(!ctype_alnum(str_replace('=', '', $tag))) continue;
+				$pasteFilters[] = $tag;
+			}
+		}
+		
+		return implode(',', $pasteFilters);
+	}
+
+	/**
 	 * Get content.css file contents for inline editor output
 	 *
 	 * @return string
