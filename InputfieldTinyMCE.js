@@ -727,8 +727,14 @@ var InputfieldTinyMCE = {
 				var $editors = jQuery(this).find('.' + t.cls.normal + '.' + t.cls.loaded);
 				if($editors.length) {
 					t.log(e.type + '.resetEditors', $editors);
-					// force all to load
+					// force all loaded to reset
 					t.resetEditors($editors);
+				}
+				// all "normal" non-placeholder editors that are not yet "loaded"
+				var $editors = jQuery(this).find('.' + t.cls.normal + ':not(.' + t.cls.loaded + '):not(.' + t.cls.placeholder + ')');
+				if($editors.length) {
+					t.log(e.type + '.initEditors', $editors);
+					t.initEditors($editors);
 				}
 			})
 			.on('reload', '.Inputfield', function() {
@@ -751,8 +757,8 @@ var InputfieldTinyMCE = {
 				}
 				var $placeholders = $inputfield.find('.' + t.cls.placeholder);
 				if($placeholders.length) t.initPlaceholders($placeholders);
-				 */
 				return false;
+				 */
 			})
 			.on('sortstop', function(e) {
 				var $editors = jQuery(e.target).find('.' + t.cls.loaded);
