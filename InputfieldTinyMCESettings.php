@@ -5,7 +5,7 @@
  *
  * Helper for managing TinyMCE settings and defaults
  *
- * ProcessWire 3.x, Copyright 2022 by Ryan Cramer
+ * ProcessWire 3.x, Copyright 2023 by Ryan Cramer
  * https://processwire.com
  *
  */
@@ -505,8 +505,11 @@ class InputfieldTinyMCESettings extends InputfieldTinyMCEClass {
 		}
 	
 		// attempt to get from admin theme
-		$value = $this->wire()->adminTheme->_('en');
-		if($value !== 'en' && is_file("$path$value.js")) return $value;
+		$adminTheme = $this->wire()->adminTheme;
+		if($adminTheme) {
+			$value = $this->wire()->sanitizer->name($adminTheme->_('en'));
+			if($value !== 'en' && is_file("$path$value.js")) return $value;
+		}
 
 		$value = $languages->getLocale();
 	

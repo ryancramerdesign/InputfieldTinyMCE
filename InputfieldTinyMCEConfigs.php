@@ -5,7 +5,7 @@
  * 
  * Helper for managing configuration settings in TinyMCE
  * 
- * ProcessWire 3.x, Copyright 2022 by Ryan Cramer
+ * ProcessWire 3.x, Copyright 2023 by Ryan Cramer
  * https://processwire.com
  *
  */
@@ -634,7 +634,7 @@ class InputfieldTinyMCEConfigs extends InputfieldTinyMCEClass {
 		*/
 	
 		// external plugins	
-		$opts = trim($this->inputfield->extPluginOpts);
+		$opts = trim((string) $this->inputfield->extPluginOpts);
 		$opts = strlen($opts) ? explode("\n", $opts) : array();
 		$f = $fieldset->InputfieldCheckboxes;
 		$f->attr('name', 'extPlugins');
@@ -643,7 +643,7 @@ class InputfieldTinyMCEConfigs extends InputfieldTinyMCEClass {
 		$f->icon = 'plug';
 		if(count($opts)) {
 			foreach($opts as $file) {
-				$file = trim($file);
+				$file = trim("$file");
 				$f->addOption($file, basename($file, '.js'));
 			}
 			$f->val($this->inputfield->extPlugins);

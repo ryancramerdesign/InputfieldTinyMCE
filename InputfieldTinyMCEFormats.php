@@ -5,7 +5,7 @@
  *
  * Helper for managing TinyMCE style_formats and related settings
  *
- * ProcessWire 3.x, Copyright 2022 by Ryan Cramer
+ * ProcessWire 3.x, Copyright 2023 by Ryan Cramer
  * https://processwire.com
  *
  */
@@ -14,13 +14,14 @@ class InputfieldTinyMCEFormats extends InputfieldTinyMCEClass {
 	/**
 	 * HTML5 inline elements that should be "inline" designation in style_formats
 	 *
-	 * These elements can be inserted from Styles dropdown, if defined in style_formats.
+	 * Text can be highlighted and then applied to any of these selements from the Styles dropdown.
+	 * See also: notes in $inlineBlocks variable below.
 	 *
 	 * @var string
 	 *
 	 */
 	static protected $inlines =
-		'/a/abbr/acronym/b/bdi/bdo/big/br/button/cite/code/' .
+		'/abbr/acronym/b/bdi/bdo/big/br/button/cite/code/' .
 		'/del/dfn/em/i/ins/kbd/label/mark/meter/' .
 		'/q/s/samp/small/span/strong/' .
 		'/sub/sup/time/u/tt/var/wbr/';
@@ -50,7 +51,7 @@ class InputfieldTinyMCEFormats extends InputfieldTinyMCEClass {
 	 *
 	 */
 	static protected $inlineBlocks =
-		'/fieldset/figcaption/figure/form/dialog/form/' .
+		'/a/fieldset/figcaption/figure/form/dialog/form/' .
 		'/audio/canvas/data/datalist/img/iframe/embed/input/map/noscript/object/output/' .
 		'/picture/progress/ruby/select/slot/svg/template/textarea/video/';
 
