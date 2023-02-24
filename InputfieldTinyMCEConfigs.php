@@ -375,7 +375,7 @@ class InputfieldTinyMCEConfigs extends InputfieldTinyMCEClass {
 					$this->_('This looks like a sheet of paper, similar to how it might appear in a word processor.')
 			),
 			'imgUpload' => array(
-				'label' => $this->_('Upload'),
+				'label' => $this->_('ImgUpload'),
 				'description' =>
 					$this->_('Enables images to be uploaded automatically by dragging and dropping them into the editor.') . ' ' .
 					$this->_('Requires that the page being edited has an images field on it.')
@@ -676,6 +676,11 @@ class InputfieldTinyMCEConfigs extends InputfieldTinyMCEClass {
 		if(in_array('invalid_styles', $optionals)) {
 			$fieldset->add($this->configInvalidStyles($defaults['invalid_styles']));
 		}
+		if(in_array('imageFields', $optionals)) {
+			$f = $this->configImageFields();
+			if(!$inContext) $f->showIf = 'features=imgUpload';
+			$fieldset->add($f);
+		}
 
 		// identify which settings are being modified by "add_" or "replace_" module settings
 		$addDefaults = $this->settings()->getAddDefaults();
@@ -702,7 +707,7 @@ class InputfieldTinyMCEConfigs extends InputfieldTinyMCEClass {
 		$f->attr('name', 'toggles');
 		$f->label = $this->_('Markup toggles');
 		$f->description = $this->_('Controls adjustments made to markup during input processing.'); 
-		$f->icon = 'code';
+		$f->icon = 'html5';
 		$f->addOption(InputfieldTinyMCE::toggleCleanDiv, $this->_('Convert `<div>` tags to `<p>` tags on save?'));
 		$f->addOption(InputfieldTinyMCE::toggleCleanP, $this->_('Remove empty `<p>` tags on save?'));
 		$f->addOption(InputfieldTinyMCE::toggleCleanNbsp, $this->_('Remove non-breaking spaces on save?'));
@@ -712,42 +717,49 @@ class InputfieldTinyMCEConfigs extends InputfieldTinyMCEClass {
 		$fieldset->add($f);
 	
 		if(in_array('settingsJSON', $optionals)) {
-			$label = $this->_('Custom settings JSON');
-			$f = $fieldset->InputfieldTextarea;
-			$f->attr('name', 'settingsJSON');
-			$f->label = "$label " . $this->label('text');
-			$f->icon = 'file-code-o';
-			$f->description = $this->_('Enter JSON of any additional custom settings you’d like to add that are not indicated in the settings above.');
-			$f->collapsed = Inputfield::collapsedBlank;
-			$f->notes = $exampleLabel . '`{ "invalid_styles": "color font-size font-family line-height" }`';
+			$fs = $fieldset->InputfieldFieldset;
+			$fs->attr('name', '_settingsJSON'); 
+			$fs->label = $this->_('Custom settings JSON');
+			$fs->icon = 'code';
+			$fs->themeColor = 'secondary';
+			$fs->themeOffset = 1;
+			$fieldset->add($fs);
+			
+			$f1 = $fieldset->InputfieldTextarea;
+			$f1->attr('name', 'settingsJSON');
+			$f1->label = $this->_('JSON text'); 
+			$f1->icon = 'terminal';
+			$f1->description = $this->_('Enter JSON of any additional custom settings you’d like to add that are not indicated in the settings above.');
+			$f1->collapsed = Inputfield::collapsedBlank;
+			$f1->notes = $exampleLabel . '`{ "invalid_styles": "color font-size font-family line-height" }`';
 			$value = $this->inputfield->settingsJSON;
-			$f->val($value);
+			$f1->val($value);
 			if($value && !$isPost) {
-				$this->tools()->jsonDecode($value, $f->label); // test decode
+				$this->tools()->jsonDecode($value, $f1->label); // test decode
 			}
-			$f->themeOffset = 1;
-			$fieldset->add($f);
+			$fs->add($f1);
 		
-			$f = $fieldset->InputfieldURL;
-			$f->attr('name', 'settingsFile');
-			$f->label = "$label " . $this->label('file');
-			$f->icon = 'file-code-o';
-			$f->description =
+			$f2 = $fieldset->InputfieldURL;
+			$f2->attr('name', 'settingsFile');
+			$f2->label = 'JSON file';
+			$f2->icon = 'file-code-o';
+			$f2->description =
 				$this->_('Enter the path to a custom settings JSON file relative to the ProcessWire installation root directory.') . ' ' .
 				$this->_('Use this to specify custom settings beyond those supported above.');
-			$f->attr('placeholder', '/dir/to/custom-settings.json');
+			$f2->attr('placeholder', '/dir/to/custom-settings.json');
 			$exampleUrl = $config->urls($this->inputfield) . 'defaults.json';
-			$f->notes =
+			$f2->notes =
 				sprintf($this->_('See an example settings JSON file here: [defaults.json](%s).'), $exampleUrl);
-			$f->collapsed = Inputfield::collapsedBlank;
+			$f2->collapsed = Inputfield::collapsedBlank;
 			$value = $this->inputfield->settingsFile;
-			$f->val($value);
+			$f2->val($value);
 			if($value && !$isPost) {
 				$value = $config->paths->root . ltrim($value, '/');
-				$this->tools()->jsonDecodeFile($value, $f->label); // test decode
+				$this->tools()->jsonDecodeFile($value, $f2->label); // test decode
 			}
-			$f->themeOffset = 1;
-			$fieldset->add($f);
+			$fs->add($f2);
+			
+			if(!$f1->val() && !$f2->val()) $fs->collapsed = Inputfield::collapsedYes;
 		}
 	
 		return $fieldset;
@@ -864,6 +876,7 @@ class InputfieldTinyMCEConfigs extends InputfieldTinyMCEClass {
 			$this->configRemovedMenuitems($defaults['removed_menuitems']),
 			$this->configStyleFormatsCSS(),
 			$this->configInvalidStyles($defaults['invalid_styles']),
+			$this->configImageFields(), 
 		);
 		$f = $inputfields->InputfieldCheckboxes;
 		$f->attr('name', 'optionals');
@@ -937,7 +950,7 @@ class InputfieldTinyMCEConfigs extends InputfieldTinyMCEClass {
 		$f = $inputfields->InputfieldTextarea;
 		$f->attr('name', 'defaultsJSON');
 		$f->label = "$label " . $this->label('text');
-		$f->icon = 'file-code-o';
+		$f->icon = 'terminal';
 		$f->description = $this->_('Enter JSON of any default settings you’d like to override from the module defaults.');
 		$f->collapsed = Inputfield::collapsedBlank;
 		$f->detail = $defaultsDetail;
@@ -1171,6 +1184,7 @@ class InputfieldTinyMCEConfigs extends InputfieldTinyMCEClass {
 	}
 
 	protected function configHeadlines() {
+		/** @var InputfieldCheckboxes $f */
 		$f = $this->wire()->modules->get('InputfieldCheckboxes');
 		$f->attr('name', 'headlines');
 		$f->label = $this->_('Headline options');
@@ -1181,6 +1195,32 @@ class InputfieldTinyMCEConfigs extends InputfieldTinyMCEClass {
 		}
 		$f->val($this->inputfield->headlines);
 		$f->optionColumns = 1;
+		$f->themeOffset = 1;
+		return $f;
+	}
+	
+	protected function configImageFields() {
+		/** @var InputfieldAsmSelect $f */
+		$f = $this->wire()->modules->get('InputfieldAsmSelect');
+		$f->attr('name', 'imageFields');
+		$f->label = $this->_('Image fields for ImgUpload');
+		$f->description = 
+			$this->_('Select which image fields are supported (for uploads) when an image is dragged into the editor.');
+		$f->notes = 
+			$this->_('If no fields are selected then an available images field will be automatically chosen at runtime.') . ' ' . 
+			$this->_('If the option labeled “None” is selected, then the feature will be disabled.') . ' ' . 
+			$this->_('If multiple image fields match on a given page, the order of the selections above applies.');
+		$f->icon = 'picture-o';
+		$imageFields = $this->inputfield->imageFields;
+		if(!is_array($imageFields)) $imageFields = array();
+		if(in_array('x', $imageFields) && count($imageFields) > 1) $imageFields = array('x');
+		$f->addOption('x', $this->_('None'));
+		foreach($this->wire()->fields->findByType('FieldtypeImage') as $field) {
+			if(((int) $field->get('maxFiles')) === 1) continue;
+			$f->addOption($field->name);
+		}
+		$f->attr('value', $imageFields);
+		$f->collapsed = Inputfield::collapsedBlank;
 		$f->themeOffset = 1;
 		return $f;
 	}

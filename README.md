@@ -23,7 +23,7 @@ core as an alternative or replacement for the existing CKEditor 4.x Inputfield.
 
 -----
 
-ProcessWire 3.x, Copyright 2022 by Ryan Cramer  
+ProcessWire 3.x, Copyright 2023 by Ryan Cramer  
 https://processwire.com
 
 TinyMCE 6.x, Copyright (c) 2022 Ephox Corporation DBA Tiny Technologies, Inc.  

@@ -3,7 +3,7 @@
 /**
  * InputfieldTinyMCE
  * 
- * ProcessWire 3.x, Copyright 2022 by Ryan Cramer
+ * ProcessWire 3.x, Copyright 2023 by Ryan Cramer
  * https://processwire.com
  * 
  * TinyMCE 6.x, Copyright (c) 2022 Ephox Corporation DBA Tiny Technologies, Inc.
@@ -45,6 +45,7 @@
  * @property bool|int $debugMode Makes InputfieldTinyMCE.js use verbose console.log() messages
  * @property string $extraCSS Extra CSS for editor, applies to all editors (appended to TinyMCE content_style setting)
  * @property string $pasteFilter Rule string of elements and attributes allowed during filtered paste
+ * @property array $imageFields Names of fields allowed for drag-drop in images
  * There are also `$lang_name=packname` settings in multi-lang sites where "name" is lang name and "packname" is lang pack name
  * 
  * Runtime settings
@@ -73,7 +74,7 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 		return array(
 			'title' => 'TinyMCE',
 			'summary' => 'TinyMCE rich text editor version ' . self::mceVersion . '.',
-			'version' => 613,
+			'version' => 614,
 			'icon' => 'keyboard-o',
 			'requires' => 'ProcessWire>=3.0.200, MarkupHTMLPurifier',
 		);
@@ -169,6 +170,7 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 			'styleFormatsCSS' => 'styleFormatsCSS',
 			'settingsJSON' => 'settingsJSON',
 			'headlines' => 'headlines',
+			'imageFields' => 'imageFields',
 		),
 	);
 
@@ -222,7 +224,7 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 			'styleFormatsCSS' => '', // optionals
 			'extraCSS' => '', 
 			'pasteFilter' => 'default', 
-			'optionals' => array(),
+			'optionals' => array('settingsJSON'),
 			'debugMode' => false, 
 		);
 	
@@ -236,6 +238,7 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 		$data['contextmenu'] = 'default';
 		$data['removed_menuitems'] = 'default';
 		$data['invalid_styles'] = 'default';
+		$data['imageFields'] = array();
 		
 		$this->data($data);
 		parent::__construct();
@@ -531,7 +534,6 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 	
 		$config->js($class, $js);
 	}
-
 
 	/**
 	 * Render ready

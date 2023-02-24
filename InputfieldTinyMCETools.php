@@ -65,10 +65,23 @@ class InputfieldTinyMCETools extends InputfieldTinyMCEClass {
 	public function getImageField() {
 		$page = $this->inputfield->hasPage;
 		if(!$page || !$page->id) return null;
+
 		$template = $page->template;
-		$imageField = null;
 		$alternates = array();
-		if(isset(self::$imageFields[$template->id])) {
+		$imageField = null;
+		$imageFields = $this->inputfield->imageFields;
+		
+		if(!is_array($imageFields)) $imageFields = array();
+		if(in_array('x', $imageFields)) return null; // x disables imageField
+		
+		foreach($imageFields as $fieldName) {
+			$imageField = $page->getField($fieldName);
+			if($imageField) break;
+		}
+		
+		if($imageField) {
+			// use configured imageField found above
+		} else if(isset(self::$imageFields[$template->id])) {
 			$imageField = self::$imageFields[$template->id];
 			if($imageField === false) $imageField = null;
 		} else {
@@ -92,6 +105,7 @@ class InputfieldTinyMCETools extends InputfieldTinyMCEClass {
 			if(!$imageField && count($alternates)) $imageField = reset($alternates);
 			self::$imageFields[$template->id] = ($imageField ? $imageField : false);
 		}
+		
 		return $imageField;
 	}
 
@@ -182,6 +196,7 @@ class InputfieldTinyMCETools extends InputfieldTinyMCEClass {
 	 *
 	 */
 	public function linkConfig($key = '') {
+		$sanitizer = $this->wire()->sanitizer;
 
 		if(self::$linkConfig === null) {
 			self::$linkConfig = $this->wire()->modules->getModuleConfigData('ProcessPageEditLink');
@@ -192,13 +207,19 @@ class InputfieldTinyMCETools extends InputfieldTinyMCEClass {
 		if($key === 'targetOptions') {
 			$value = isset($value['targetOptions']) ? $value['targetOptions'] : '_blank';
 			$value = explode("\n", $value);
-			foreach($value as $k => $v) $value[$k] = trim(trim($v), '+');
+			foreach($value as $k => $v) {
+				$v = trim(trim($v), '+');
+				if($sanitizer->name($v) !== $v) continue;
+				$value[$k] = $v;
+			}
 
 		} else if($key === 'classOptions') {
 			$value = isset($value[$key]) ? $value[$key] : '';
 			$options = array();
 			foreach(explode("\n", $value) as $option) {
-				$options[] = trim($option, '+ ');
+				$option = trim($option, '+ ');
+				if($sanitizer->nameFilter($option, array('-', '_', ':'), '-') !== $option) continue;
+				$options[] = $option;
 			}
 			$value = implode(',', $options);
 		}
