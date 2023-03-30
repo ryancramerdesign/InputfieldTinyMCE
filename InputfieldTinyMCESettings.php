@@ -489,7 +489,8 @@ class InputfieldTinyMCESettings extends InputfieldTinyMCEClass {
 	
 		$default = 'en_US';
 		$languages = $this->wire()->languages;
-		$path = __DIR__ . "/langs/";
+		$sanitizer = $this->wire()->sanitizer;
+		$path = __DIR__ . '/langs/';
 		
 		if(!$languages) return $default;
 		
@@ -507,7 +508,7 @@ class InputfieldTinyMCESettings extends InputfieldTinyMCEClass {
 		// attempt to get from admin theme
 		$adminTheme = $this->wire()->adminTheme;
 		if($adminTheme) {
-			$value = $this->wire()->sanitizer->name($adminTheme->_('en'));
+			$value = $sanitizer->name($adminTheme->_('en'));
 			if($value !== 'en' && is_file("$path$value.js")) return $value;
 		}
 
@@ -525,12 +526,12 @@ class InputfieldTinyMCESettings extends InputfieldTinyMCEClass {
 	
 		// attempt to get from CKEditor static translation
 		$textdomain = '/wire/modules/Inputfield/InputfieldCKEditor/InputfieldCKEditor.module';
-		if(is_file($this->wire()->config->urls->root . ltrim($textdomain, '/'))) {
+		if(is_file($this->wire()->config->paths->root . ltrim($textdomain, '/'))) {
 			$value = _x('en', 'language-pack', $textdomain);
-			if($value !== 'en' && is_file("$path$value.js")) return $value;
-
-			$value = _x('en', 'language-code', $textdomain);
-			if($value !== 'en' && is_file("$path$value.js")) return $value;
+			if($value !== 'en') {
+				$value = $sanitizer->name($value);
+				if($value && is_file("$path$value.js")) return $value;
+			}
 		}
 
 		return $default;
