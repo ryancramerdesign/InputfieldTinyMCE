@@ -74,7 +74,7 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 		return array(
 			'title' => 'TinyMCE',
 			'summary' => 'TinyMCE rich text editor version ' . self::mceVersion . '.',
-			'version' => 614,
+			'version' => 615,
 			'icon' => 'keyboard-o',
 			'requires' => 'ProcessWire>=3.0.200, MarkupHTMLPurifier',
 		);
@@ -84,7 +84,7 @@ class InputfieldTinyMCE extends InputfieldTextarea implements ConfigurableModule
 	 * TinyMCE version
 	 * 
 	 */
-	const mceVersion = '6.2.0';
+	const mceVersion = '6.4.1';
 	
 	const toggleCleanDiv = 2; // remove <div>s
 	const toggleCleanP = 4; // remove empty <p> tags	

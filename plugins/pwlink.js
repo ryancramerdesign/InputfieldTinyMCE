@@ -212,7 +212,7 @@ function pwTinyMCE_link(editor) {
 		$iframe = pwModalWindow(modalUrl, modalSettings, 'medium');
 		
 		// modal window load event
-		$iframe.load(function() { iframeLoad($iframe) });
+		$iframe.on('load', function() { iframeLoad($iframe) });
 	}
 
 	init();
