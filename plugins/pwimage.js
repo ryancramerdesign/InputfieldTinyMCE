@@ -8,24 +8,29 @@ function pwTinyMCE_image(editor) {
 	
 	var $ = jQuery;
 	var modalUrl = ProcessWire.config.urls.admin + 'page/image/';
-	var labels = ProcessWire.config.InputfieldTinyMCE.labels; // translated text labels
 	var $link = null; // if img is wrapped in link, this is it
 	var $figcaption = null; // <figcaption> element when applicable, null otherwise
 	var $figure = null; // <figure> element when applicable, null otherwise
-	
 	var selection = editor.selection;
 	var node = selection.getNode(); // <img> or <body> if inserting new image
 	var nodeParent = node.parentNode; // <p>, <a> or <figure> 
 	var nodeParentName = nodeParent.nodeName.toUpperCase(); // P, A, or FIGURE
 	var nodeGrandparent = nodeParent.parentNode; // <figure> or <body> or <p>, <figure> only if nodeParent is <a>
 	var nodeGrandparentName = nodeGrandparent ? nodeGrandparent.nodeName.toUpperCase() : ''; // FIGURE or BODY or P
-
-	/*	
-	console.log('node', node.nodeName); 
-	console.log('nodeParent', nodeParentName);
-	console.log('nodeGrandparent', nodeGrandparentName);
-	 */
 	
+	var labels = {
+		captionText: 'Caption text', 
+		savingImage: 'Saving', 
+		insertImage: 'Insert',
+		selectImage: 'Select',
+		selectAnotherImage: 'Select another', 
+		cancel: 'Cancel'
+	};
+	
+	if(typeof ProcessWire.config.InputfieldTinyMCE.labels !== 'undefined') {
+		labels = ProcessWire.config.InputfieldTinyMCE.labels; // translated text labels
+	}
+
 	/**
 	 * Insert image
 	 * 
@@ -193,7 +198,7 @@ function pwTinyMCE_image(editor) {
 				var button = {
 					html: $button.html(),
 					click: function() {
-						$button.click();
+						$button.trigger('click');
 					}
 				}
 				buttons.push(button);
@@ -317,7 +322,7 @@ function pwTinyMCE_image(editor) {
 		};
 		
 		var $iframe = pwModalWindow(modalUrl + buildQueryString(), modalSettings, 'large');
-		$iframe.load(function() { iframeLoad($iframe); });
+		$iframe.on('load', function() { iframeLoad($iframe); });
 	}	
 	
 	init();

@@ -7,14 +7,21 @@
 function pwTinyMCE_link(editor) {
 	
 	var $ = jQuery;
-	var labels = ProcessWire.config.InputfieldTinyMCE.labels; // translated text labels
 	var $iframe; // set after modalSettings 
-	
 	var selection = editor.selection;
 	var node = selection.getNode();
 	var nodeName = node.nodeName.toUpperCase(); // will typically be 'A', 'IMG' or 'P' 
 	var selectionText = selection.getContent({ format: 'text' });
 	var selectionHtml = selection.getContent();
+	
+	var labels = {
+		insertLink: 'Insert',
+		cancel: 'Cancel'
+	};
+	
+	if(typeof ProcessWire.config.InputfieldTinyMCE.labels !== 'undefined') {
+		labels = ProcessWire.config.InputfieldTinyMCE.labels; // translated text labels
+	}
 	
 	function getPageId() {
 		var $in = jQuery("#Inputfield_id");
@@ -61,6 +68,7 @@ function pwTinyMCE_link(editor) {
 		var $textarea = jQuery('#' + editor.id); // get textarea of this instance
 		var $langWrapper = $textarea.closest('.LanguageSupport');
 		var modalUrl = ProcessWire.config.urls.admin + 'page/link/?modal=1&id=' + getPageId();
+		var n;
 		
 		if($langWrapper.length) {
 			// multi-language field
@@ -77,7 +85,7 @@ function pwTinyMCE_link(editor) {
 		
 		if($existingLink != null) {
 			var attrs = ['href', 'title', 'class', 'rel', 'target'];
-			for(var n = 0; n < attrs.length; n++) {
+			for(n = 0; n < attrs.length; n++) {
 				var val = $existingLink.attr(attrs[n]);
 				if(val && val.length) modalUrl += '&' + attrs[n] + '=' + encodeURIComponent(val);
 			}
@@ -86,7 +94,7 @@ function pwTinyMCE_link(editor) {
 		// add any anchors to the modal URL
 		var anchors = getAnchorIds();
 		if(anchors.length > 0) {
-			for(var n = 0; n < anchors.length; n++) {
+			for(n = 0; n < anchors.length; n++) {
 				modalUrl += '&anchors[]=' + encodeURIComponent(anchors[n]);
 			}
 		}
@@ -134,9 +142,10 @@ function pwTinyMCE_link(editor) {
 		$i.find('#ProcessPageEditLinkForm').data('iframe', $iframe);
 		
 		// capture enter key in main URL text input
-		$('#link_page_url_input', $i).keydown(function(event) {
+		$('#link_page_url_input', $i).on('keydown', function(event) {
 			var $this = $(this);
-			var val = $.trim($this.val());
+			var val = $this.val();
+			val = typeof val == 'string' ? val.trim() : '';
 			if(event.keyCode == 13) {
 				event.preventDefault();
 				if(val.length > 0) clickInsert($iframe);
